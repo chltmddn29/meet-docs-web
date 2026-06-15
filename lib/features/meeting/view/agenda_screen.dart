@@ -13,6 +13,7 @@ class AgendaScreen extends ConsumerStatefulWidget {
 
 class _AgendaScreenState extends ConsumerState<AgendaScreen> {
   final _titleController = TextEditingController();
+  final _participantController = TextEditingController();
   final List<TextEditingController> _agendaControllers = [
     TextEditingController(),
   ];
@@ -21,6 +22,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
   @override
   void dispose() {
     _titleController.dispose();
+    _participantController.dispose();
     for (final c in _agendaControllers) {
       c.dispose();
     }
@@ -60,11 +62,22 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
       return;
     }
 
+    // 참석자: 쉼표로 구분된 문자열 → 리스트
+    final participants = _participantController.text
+        .split(',')
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .toList();
+
     setState(() => _isLoading = true);
 
     try {
       final createMeeting = ref.read(createMeetingProvider);
-      final meeting = await createMeeting(_titleController.text, agendas);
+      final meeting = await createMeeting(
+        _titleController.text,
+        agendas,
+        participants,
+      );
       if (mounted) {
         context.go('/recording/${meeting.meetingId}');
       }
@@ -107,8 +120,6 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
                       style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 32),
-
-                    // 폼 카드
                     Container(
                       width: 600,
                       padding: const EdgeInsets.all(32),
@@ -149,6 +160,47 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
                           ),
                           const SizedBox(height: 24),
 
+                          // 참석자 (선택)
+                          Row(
+                            children: [
+                              const Text(
+                                '참석자',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '(선택)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[400],
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: _participantController,
+                            decoration: InputDecoration(
+                              hintText: '쉼표로 구분하여 입력 (예: 홍길동, 김철수)',
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                ),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(8),
+                                borderSide: BorderSide(
+                                  color: Colors.grey[300]!,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
                           // 안건
                           const Text(
                             '안건',
@@ -158,7 +210,6 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
                             ),
                           ),
                           const SizedBox(height: 12),
-
                           ..._agendaControllers.asMap().entries.map((entry) {
                             final idx = entry.key;
                             final controller = entry.value;
@@ -201,25 +252,19 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
                               ),
                             );
                           }),
-
-                          // 안건 추가 버튼
                           OutlinedButton.icon(
                             onPressed: _addAgenda,
                             icon: const Icon(Icons.add, size: 16),
                             label: const Text('안건 추가'),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF378ADD),
-                              side: const BorderSide(
-                                color: Color(0xFF378ADD),
-                                style: BorderStyle.solid,
-                              ),
+                              side: const BorderSide(color: Color(0xFF378ADD)),
                               minimumSize: const Size(double.infinity, 44),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(8),
                               ),
                             ),
                           ),
-
                           const SizedBox(height: 32),
 
                           // 버튼

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../core/constants/api_constants.dart';
 import '../../../shared/widgets/sidebar.dart';
-import '../provider/meeting_provider.dart';
 import '../model/meeting_model.dart';
+import '../provider/meeting_provider.dart';
 
 class DetailScreen extends ConsumerWidget {
   final int meetingId;
@@ -26,7 +28,6 @@ class DetailScreen extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 뒤로가기 + 제목
                     Row(
                       children: [
                         IconButton(
@@ -52,12 +53,7 @@ class DetailScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 32),
-
-                    // 안건별 정리 (간결 버전)
-                    ...meeting.agendaItems.map(
-                      (item) => _AgendaCard(item: item),
-                    ),
-
+                    ...meeting.agendaItems.map((item) => _AgendaCard(item: item)),
                     if (meeting.agendaItems.isEmpty)
                       Padding(
                         padding: const EdgeInsets.all(40),
@@ -68,6 +64,8 @@ class DetailScreen extends ConsumerWidget {
                           ),
                         ),
                       ),
+                    const SizedBox(height: 24),
+                    _SaveSection(meetingId: meetingId),
                   ],
                 ),
               ),
@@ -150,6 +148,207 @@ class _AgendaCard extends StatelessWidget {
               ),
             ),
           ],
+        ],
+      ),
+    );
+  }
+}
+
+class _SaveSection extends ConsumerStatefulWidget {
+  final int meetingId;
+  const _SaveSection({required this.meetingId});
+
+  @override
+  ConsumerState<_SaveSection> createState() => _SaveSectionState();
+}
+
+class _SaveSectionState extends ConsumerState<_SaveSection> {
+  String? _loadingPlatform;
+
+  Future<dynamic> _ensureSaved(String platform) =>
+      ref.read(savePlatformProvider)(widget.meetingId, platform);
+
+  Future<void> _open(String url) async {
+    if (!await launchUrl(Uri.parse(url), webOnlyWindowName: '_blank')) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('열 수 없습니다')),
+        );
+      }
+    }
+  }
+
+  String _resolveUrl(String platform, dynamic result) {
+    switch (platform) {
+      case 'pdf':
+        return ApiConstants.downloadPdf(widget.meetingId);
+      case 'markdown':
+        return ApiConstants.downloadMarkdown(widget.meetingId);
+      case 'docx':
+        return ApiConstants.downloadDocx(widget.meetingId);
+      case 'notion':
+        return (result as Map?)?['notion_url'] ?? '';
+      default:
+        return '';
+    }
+  }
+
+  Future<void> _action(String platform, {bool isPreview = false}) async {
+    setState(() => _loadingPlatform = platform);
+    try {
+      final result = await _ensureSaved(platform);
+      if (isPreview && platform == 'docx' && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Word는 미리보기를 지원하지 않아 다운로드됩니다')),
+        );
+      }
+      final url = _resolveUrl(platform, result);
+      if (url.isNotEmpty) await _open(url);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('실패: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loadingPlatform = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 700,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '내보내기',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _SaveButton(
+                label: '마크다운',
+                icon: Icons.description_outlined,
+                loading: _loadingPlatform == 'markdown',
+                onPreview: () => _action('markdown', isPreview: true),
+                onDownload: () => _action('markdown'),
+              ),
+              _SaveButton(
+                label: 'PDF',
+                icon: Icons.picture_as_pdf_outlined,
+                loading: _loadingPlatform == 'pdf',
+                onPreview: () => _action('pdf', isPreview: true),
+                onDownload: () => _action('pdf'),
+              ),
+              _SaveButton(
+                label: 'Word',
+                icon: Icons.article_outlined,
+                loading: _loadingPlatform == 'docx',
+                onPreview: () => _action('docx', isPreview: true),
+                onDownload: () => _action('docx'),
+              ),
+              _SaveButton(
+                label: '노션',
+                icon: Icons.web_outlined,
+                loading: _loadingPlatform == 'notion',
+                previewLabel: '열기',
+                onPreview: () => _action('notion', isPreview: true),
+                onDownload: null,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SaveButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool loading;
+  final VoidCallback onPreview;
+  final VoidCallback? onDownload;
+  final String previewLabel;
+
+  const _SaveButton({
+    required this.label,
+    required this.icon,
+    required this.loading,
+    required this.onPreview,
+    this.onDownload,
+    this.previewLabel = '미리보기',
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 200,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF5F5F5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 18, color: const Color(0xFF378ADD)),
+              const SizedBox(width: 8),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (loading)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: onPreview,
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      textStyle: const TextStyle(fontSize: 12),
+                    ),
+                    child: Text(previewLabel),
+                  ),
+                ),
+                if (onDownload != null) ...[
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: onDownload,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF378ADD),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        textStyle: const TextStyle(fontSize: 12),
+                      ),
+                      child: const Text('다운로드'),
+                    ),
+                  ),
+                ],
+              ],
+            ),
         ],
       ),
     );

@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/home/view/home_screen.dart';
 import '../../features/meeting/view/agenda_screen.dart';
@@ -7,33 +8,55 @@ import '../../features/meeting/view/detail_screen.dart';
 import '../../features/history/view/history_screen.dart';
 import '../../features/audio/view/audio_screen.dart';
 
+// 애니메이션 없는 페이지 헬퍼
+CustomTransitionPage _noTransition(Widget child) {
+  return CustomTransitionPage(
+    child: child,
+    transitionDuration: Duration.zero,
+    reverseTransitionDuration: Duration.zero,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) =>
+        child,
+  );
+}
+
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
-    GoRoute(path: '/', builder: (context, state) => const HomeScreen()),
-    GoRoute(path: '/agenda', builder: (context, state) => const AgendaScreen()),
+    GoRoute(
+      path: '/',
+      pageBuilder: (context, state) => _noTransition(const HomeScreen()),
+    ),
+    GoRoute(
+      path: '/agenda',
+      pageBuilder: (context, state) => _noTransition(const AgendaScreen()),
+    ),
     GoRoute(
       path: '/recording/:meetingId',
-      builder: (context, state) => RecordingScreen(
-        meetingId: int.parse(state.pathParameters['meetingId']!),
+      pageBuilder: (context, state) => _noTransition(
+        RecordingScreen(
+          meetingId: int.parse(state.pathParameters['meetingId']!),
+        ),
       ),
     ),
     GoRoute(
       path: '/result/:meetingId',
-      builder: (context, state) => ResultScreen(
-        meetingId: int.parse(state.pathParameters['meetingId']!),
+      pageBuilder: (context, state) => _noTransition(
+        ResultScreen(meetingId: int.parse(state.pathParameters['meetingId']!)),
       ),
     ),
     GoRoute(
       path: '/detail/:meetingId',
-      builder: (context, state) => DetailScreen(
-        meetingId: int.parse(state.pathParameters['meetingId']!),
+      pageBuilder: (context, state) => _noTransition(
+        DetailScreen(meetingId: int.parse(state.pathParameters['meetingId']!)),
       ),
     ),
     GoRoute(
       path: '/history',
-      builder: (context, state) => const HistoryScreen(),
+      pageBuilder: (context, state) => _noTransition(const HistoryScreen()),
     ),
-    GoRoute(path: '/audio', builder: (context, state) => const AudioScreen()),
+    GoRoute(
+      path: '/audio',
+      pageBuilder: (context, state) => _noTransition(const AudioScreen()),
+    ),
   ],
 );
