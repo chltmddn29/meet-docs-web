@@ -63,8 +63,10 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   }
 
   void _startTimer() {
+    _timer?.cancel(); // 중복 방지
     _startTime = DateTime.now();
     _timer = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      if (!mounted) return;
       setState(() {
         _elapsed = DateTime.now().difference(_startTime!);
       });

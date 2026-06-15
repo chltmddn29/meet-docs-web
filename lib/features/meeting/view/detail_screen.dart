@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../shared/widgets/sidebar.dart';
 import '../model/meeting_model.dart';
@@ -205,6 +206,62 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
     }
   }
 
+  // 미리보기: 회의록 내용을 모달에 렌더링
+  Future<void> _preview() async {
+    setState(() => _loadingPlatform = '_preview');
+    try {
+      final dio = ref.read(dioProvider);
+      final response = await dio.get(
+        '/api/meetings/${widget.meetingId}/preview',
+      );
+      final markdown = response.data['markdown'] as String? ?? '';
+
+      if (!mounted) return;
+      showDialog(
+        context: context,
+        builder: (_) => Dialog(
+          child: Container(
+            width: 600,
+            constraints: const BoxConstraints(maxHeight: 700),
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      '미리보기',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
+                const Divider(),
+                Flexible(child: Markdown(data: markdown, shrinkWrap: true)),
+              ],
+            ),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('미리보기 실패: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingPlatform = null);
+    }
+  }
+
   String _resolveUrl(String platform, dynamic result) {
     switch (platform) {
       case 'pdf':
@@ -220,15 +277,11 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
     }
   }
 
-  Future<void> _action(String platform, {bool isPreview = false}) async {
+  // 다운로드: 파일 생성 후 받기 (노션은 열기)
+  Future<void> _download(String platform) async {
     setState(() => _loadingPlatform = platform);
     try {
       final result = await _ensureSaved(platform);
-      if (isPreview && platform == 'docx' && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Word는 미리보기를 지원하지 않아 다운로드됩니다')),
-        );
-      }
       final url = _resolveUrl(platform, result);
       if (url.isNotEmpty) await _open(url);
     } catch (e) {
@@ -260,38 +313,57 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
             style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 16),
+          // 미리보기 버튼 (공통, 하나)
+          OutlinedButton.icon(
+            onPressed: _loadingPlatform == '_preview' ? null : _preview,
+            icon: _loadingPlatform == '_preview'
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.visibility_outlined, size: 18),
+            label: const Text('미리보기'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF378ADD),
+              side: const BorderSide(color: Color(0xFF378ADD)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            '다운로드',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 12),
           Wrap(
             spacing: 12,
             runSpacing: 12,
             children: [
-              _SaveButton(
+              _DownloadButton(
                 label: '마크다운',
                 icon: Icons.description_outlined,
                 loading: _loadingPlatform == 'markdown',
-                onPreview: () => _action('markdown', isPreview: true),
-                onDownload: () => _action('markdown'),
+                onTap: () => _download('markdown'),
               ),
-              _SaveButton(
+              _DownloadButton(
                 label: 'PDF',
                 icon: Icons.picture_as_pdf_outlined,
                 loading: _loadingPlatform == 'pdf',
-                onPreview: () => _action('pdf', isPreview: true),
-                onDownload: () => _action('pdf'),
+                onTap: () => _download('pdf'),
               ),
-              _SaveButton(
+              _DownloadButton(
                 label: 'Word',
                 icon: Icons.article_outlined,
                 loading: _loadingPlatform == 'docx',
-                onPreview: () => _action('docx', isPreview: true),
-                onDownload: () => _action('docx'),
+                onTap: () => _download('docx'),
               ),
-              _SaveButton(
+              _DownloadButton(
                 label: '노션',
                 icon: Icons.web_outlined,
                 loading: _loadingPlatform == 'notion',
-                previewLabel: '열기',
-                onPreview: () => _action('notion', isPreview: true),
-                onDownload: null,
+                buttonText: '열기',
+                onTap: () => _download('notion'),
               ),
             ],
           ),
@@ -301,82 +373,52 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
   }
 }
 
-class _SaveButton extends StatelessWidget {
+class _DownloadButton extends StatelessWidget {
   final String label;
   final IconData icon;
   final bool loading;
-  final VoidCallback onPreview;
-  final VoidCallback? onDownload;
-  final String previewLabel;
+  final VoidCallback onTap;
+  final String buttonText;
 
-  const _SaveButton({
+  const _DownloadButton({
     required this.label,
     required this.icon,
     required this.loading,
-    required this.onPreview,
-    this.onDownload,
-    this.previewLabel = '미리보기',
+    required this.onTap,
+    this.buttonText = '다운로드',
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 200,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF5F5F5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 18, color: const Color(0xFF378ADD)),
-              const SizedBox(width: 8),
-              Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (loading)
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 8),
-              child: SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-            )
-          else
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: onPreview,
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      textStyle: const TextStyle(fontSize: 12),
-                    ),
-                    child: Text(previewLabel),
-                  ),
+    return SizedBox(
+      width: 160,
+      child: ElevatedButton(
+        onPressed: loading ? null : onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF378ADD),
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 12),
+        ),
+        child: loading
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
                 ),
-                if (onDownload != null) ...[
+              )
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(icon, size: 16),
                   const SizedBox(width: 6),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: onDownload,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF378ADD),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        textStyle: const TextStyle(fontSize: 12),
-                      ),
-                      child: const Text('다운로드'),
-                    ),
+                  Text(
+                    '$label $buttonText',
+                    style: const TextStyle(fontSize: 12),
                   ),
                 ],
-              ],
-            ),
-        ],
+              ),
       ),
     );
   }

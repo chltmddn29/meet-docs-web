@@ -40,7 +40,18 @@ final audioFilesProvider = FutureProvider<List<AudioFile>>((ref) async {
 final savePlatformProvider = Provider((ref) {
   final dio = ref.read(dioProvider);
   return (int meetingId, String platform) async {
-    final response = await dio.post(ApiConstants.savePlatform(meetingId, platform));
+    final response = await dio.post(
+      ApiConstants.savePlatform(meetingId, platform),
+    );
     return response.data;
   };
+});
+
+final previewProvider = FutureProvider.family<Map<String, dynamic>, int>((
+  ref,
+  meetingId,
+) async {
+  final dio = ref.read(dioProvider);
+  final response = await dio.get('/api/meetings/$meetingId/preview');
+  return response.data as Map<String, dynamic>;
 });

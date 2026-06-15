@@ -1,5 +1,6 @@
 class ApiConstants {
-  static const String baseUrl = 'http://localhost:8000';
+  static const String baseUrl =
+      'https://pledge-label-selection-displays.trycloudflare.com';
 
   // meetings
   static const String meetings = '/api/meetings';
