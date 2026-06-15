@@ -21,7 +21,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   final _recorder = AudioRecorder();
   bool _isRecording = false;
   bool _isUploading = false;
-  int _seconds = 0;
+  DateTime? _startTime;
+  Duration _elapsed = Duration.zero;
   Timer? _timer;
   String _statusText = '녹음 준비 중...';
 
@@ -62,8 +63,11 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   }
 
   void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      setState(() => _seconds++);
+    _startTime = DateTime.now();
+    _timer = Timer.periodic(const Duration(milliseconds: 200), (_) {
+      setState(() {
+        _elapsed = DateTime.now().difference(_startTime!);
+      });
     });
   }
 
@@ -75,9 +79,10 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   }
 
   String get _formattedTime {
-    final h = _seconds ~/ 3600;
-    final m = (_seconds % 3600) ~/ 60;
-    final s = _seconds % 60;
+    final total = _elapsed.inSeconds;
+    final h = total ~/ 3600;
+    final m = (total % 3600) ~/ 60;
+    final s = total % 60;
     if (h > 0) {
       return '${h.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
     }

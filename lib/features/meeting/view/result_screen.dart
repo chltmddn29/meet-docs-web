@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:dio/dio.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../shared/widgets/sidebar.dart';
 import '../provider/meeting_provider.dart';
@@ -15,7 +16,7 @@ class ResultScreen extends ConsumerStatefulWidget {
 }
 
 class _ResultScreenState extends ConsumerState<ResultScreen> {
-  // 처리 단계: 0=대기, 1=STT, 2=AI분석, 3=마크다운저장, 4=완료
+  // 0=대기, 1=STT, 2=AI분석, 3=마크다운저장, 4=완료, -1=에러
   int _step = 0;
   String _errorMessage = '';
 
@@ -42,12 +43,20 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
       // 4. 완료
       setState(() => _step = 4);
-      // 회의 상세 데이터 새로고침
       ref.invalidate(meetingDetailProvider(widget.meetingId));
     } catch (e) {
+      String msg = e.toString();
+      if (e is DioException) {
+        final code = e.response?.statusCode;
+        if (code == 400) {
+          msg = '400 분석할 내용이 부족합니다';
+        } else {
+          msg = e.response?.data?.toString() ?? e.message ?? msg;
+        }
+      }
       setState(() {
         _step = -1;
-        _errorMessage = e.toString();
+        _errorMessage = msg;
       });
     }
   }
@@ -156,23 +165,32 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
 
   // 에러 화면
   Widget _buildError() {
+    final isShortRecording =
+        _errorMessage.contains('400') || _errorMessage.contains('부족');
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.error_outline, size: 56, color: Colors.red[400]),
+          Icon(
+            isShortRecording ? Icons.mic_off_outlined : Icons.error_outline,
+            size: 56,
+            color: isShortRecording ? Colors.grey[400] : Colors.red[400],
+          ),
           const SizedBox(height: 16),
-          const Text(
-            '처리 중 오류가 발생했어요',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          Text(
+            isShortRecording ? '정리할 내용이 부족해요' : '처리 중 오류가 발생했어요',
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 8),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
             child: Text(
-              _errorMessage,
+              isShortRecording
+                  ? '녹음이 너무 짧거나 음성이 충분하지 않았어요.\n조금 더 길게 녹음하면 자동으로 정리해드릴게요.'
+                  : _errorMessage,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+              style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             ),
           ),
           const SizedBox(height: 24),
@@ -185,18 +203,12 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
               ),
               const SizedBox(width: 12),
               ElevatedButton(
-                onPressed: () {
-                  setState(() {
-                    _step = 0;
-                    _errorMessage = '';
-                  });
-                  _startProcessing();
-                },
+                onPressed: () => context.go('/agenda'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF378ADD),
                   foregroundColor: Colors.white,
                 ),
-                child: const Text('다시 시도'),
+                child: const Text('다시 녹음'),
               ),
             ],
           ),
@@ -235,19 +247,13 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
               style: TextStyle(fontSize: 14, color: Colors.grey[600]),
             ),
             const SizedBox(height: 32),
-
-            // 안건별 정리
             const Text(
               '안건별 정리',
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 16),
-
             ...meeting.agendaItems.map((item) => _AgendaCard(item: item)),
-
             const SizedBox(height: 32),
-
-            // 버튼
             Row(
               children: [
                 OutlinedButton(

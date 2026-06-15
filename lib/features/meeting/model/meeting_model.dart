@@ -4,6 +4,8 @@ class Meeting {
   final String status;
   final DateTime createdAt;
   final int? duration;
+  final String? participants;
+  final String? rawText;
   final List<AgendaItem> agendaItems;
 
   Meeting({
@@ -12,6 +14,8 @@ class Meeting {
     required this.status,
     required this.createdAt,
     this.duration,
+    this.participants,
+    this.rawText,
     this.agendaItems = const [],
   });
 
@@ -22,6 +26,8 @@ class Meeting {
       status: json['status'],
       createdAt: DateTime.parse(json['created_at']),
       duration: json['duration'],
+      participants: json['participants'],
+      rawText: json['raw_text'],
       agendaItems:
           (json['agenda_items'] as List<dynamic>?)
               ?.map((e) => AgendaItem.fromJson(e))
@@ -30,8 +36,11 @@ class Meeting {
     );
   }
 
-  String get formattedDate =>
-      '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}-${createdAt.day.toString().padLeft(2, '0')}';
+  String get formattedDate {
+    final local = createdAt.toLocal();
+    return '${local.year}-${local.month.toString().padLeft(2, '0')}-${local.day.toString().padLeft(2, '0')} '
+        '${local.hour.toString().padLeft(2, '0')}:${local.minute.toString().padLeft(2, '0')}';
+  }
 }
 
 class AgendaItem {
@@ -52,14 +61,20 @@ class AgendaItem {
   });
 
   factory AgendaItem.fromJson(Map<String, dynamic> json) {
-    final rawActions = json['action_items'];
+    List<String> actions = [];
+    if (json['action_items'] != null) {
+      if (json['action_items'] is List) {
+        actions = List<String>.from(json['action_items']);
+      }
+    }
+
     return AgendaItem(
       itemId: json['item_id'],
       agenda: json['agenda'] ?? '',
       order: json['order'] ?? 0,
       content: json['content'],
       decision: json['decision'],
-      actionItems: rawActions is List ? List<String>.from(rawActions) : [],
+      actionItems: actions,
     );
   }
 }

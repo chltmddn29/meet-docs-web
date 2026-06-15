@@ -52,8 +52,35 @@ class DetailScreen extends ConsumerWidget {
                         style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                     ),
+                    if (meeting.participants != null &&
+                        meeting.participants!.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 56, top: 4),
+                        child: Text(
+                          '참석자: ${meeting.participants}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.only(left: 56),
+                      child: OutlinedButton.icon(
+                        onPressed: () => context.push('/transcript/$meetingId'),
+                        icon: const Icon(Icons.article_outlined, size: 16),
+                        label: const Text('음성 원본 보기'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF378ADD),
+                          side: const BorderSide(color: Color(0xFF378ADD)),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 32),
-                    ...meeting.agendaItems.map((item) => _AgendaCard(item: item)),
+                    ...meeting.agendaItems.map(
+                      (item) => _AgendaCard(item: item),
+                    ),
                     if (meeting.agendaItems.isEmpty)
                       Padding(
                         padding: const EdgeInsets.all(40),
@@ -171,9 +198,9 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
   Future<void> _open(String url) async {
     if (!await launchUrl(Uri.parse(url), webOnlyWindowName: '_blank')) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('열 수 없습니다')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('열 수 없습니다')));
       }
     }
   }
@@ -206,9 +233,9 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
       if (url.isNotEmpty) await _open(url);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('실패: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('실패: $e')));
       }
     } finally {
       if (mounted) setState(() => _loadingPlatform = null);

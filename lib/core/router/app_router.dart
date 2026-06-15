@@ -7,6 +7,7 @@ import '../../features/meeting/view/result_screen.dart';
 import '../../features/meeting/view/detail_screen.dart';
 import '../../features/history/view/history_screen.dart';
 import '../../features/audio/view/audio_screen.dart';
+import '../../features/meeting/view/transcript_screen.dart';
 
 // 애니메이션 없는 페이지 헬퍼
 CustomTransitionPage _noTransition(Widget child) {
@@ -57,6 +58,14 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/audio',
       pageBuilder: (context, state) => _noTransition(const AudioScreen()),
+    ),
+    GoRoute(
+      path: '/transcript/:meetingId',
+      pageBuilder: (context, state) => _noTransition(
+        TranscriptScreen(
+          meetingId: int.parse(state.pathParameters['meetingId']!),
+        ),
+      ),
     ),
   ],
 );
