@@ -1,6 +1,5 @@
 class ApiConstants {
-  static const String baseUrl =
-      'https://pledge-label-selection-displays.trycloudflare.com';
+  static const String baseUrl = 'https://meet-docs-service-server.onrender.com';
 
   // meetings
   static const String meetings = '/api/meetings';

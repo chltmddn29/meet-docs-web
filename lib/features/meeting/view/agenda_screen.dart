@@ -144,6 +144,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
                             controller: _titleController,
                             decoration: InputDecoration(
                               hintText: '예) 기술 스택 결정',
+                              hintStyle: TextStyle(color: Colors.grey[400]),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
@@ -185,6 +186,10 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
                             controller: _participantController,
                             decoration: InputDecoration(
                               hintText: '쉼표로 구분하여 입력 (예: 홍길동, 김철수)',
+                              hintStyle: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[400],
+                              ),
                               border: OutlineInputBorder(
                                 borderRadius: BorderRadius.circular(8),
                                 borderSide: BorderSide(
