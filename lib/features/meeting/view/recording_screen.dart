@@ -17,7 +17,8 @@ class RecordingScreen extends ConsumerStatefulWidget {
   ConsumerState<RecordingScreen> createState() => _RecordingScreenState();
 }
 
-class _RecordingScreenState extends ConsumerState<RecordingScreen> {
+class _RecordingScreenState extends ConsumerState<RecordingScreen>
+    with WidgetsBindingObserver {
   final _recorder = AudioRecorder();
   bool _isRecording = false;
   bool _isUploading = false;
@@ -29,14 +30,29 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _startRecording();
+  }
+
+  // 탭/앱을 다시 열었을 때(브라우저가 백그라운드에서 렌더링·타이머를 멈춤)
+  // 경과 시간을 벽시계 기준으로 즉시 재동기화 → 돌아오자마자 정확한 시간 표시
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed &&
+        _isRecording &&
+        _startTime != null) {
+      setState(() => _elapsed = DateTime.now().difference(_startTime!));
+    }
   }
 
   Future<void> _startRecording() async {
     try {
       if (await _recorder.hasPermission()) {
         await _recorder.start(
-          const RecordConfig(encoder: AudioEncoder.wav),
+          // WAV는 웹에서 Web Audio(AudioContext)로 메인스레드 PCM 캡처 →
+          // 백그라운드 탭에서 suspend되어 녹음이 끊김.
+          // Opus/WebM은 MediaRecorder 네이티브 파이프라인이라 백그라운드에서도 유지됨.
+          const RecordConfig(encoder: AudioEncoder.opus),
           path: '',
         );
         setState(() {
@@ -75,6 +91,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     _recorder.dispose();
     super.dispose();
@@ -129,8 +146,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen> {
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(
           bytes,
-          filename: 'meeting_${widget.meetingId}.wav',
-          contentType: MediaType('audio', 'wav'),
+          filename: 'meeting_${widget.meetingId}.webm',
+          contentType: MediaType('audio', 'webm'),
         ),
       });
 
