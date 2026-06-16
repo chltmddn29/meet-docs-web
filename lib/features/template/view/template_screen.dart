@@ -1,9 +1,12 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../shared/widgets/sidebar.dart';
 import '../model/template_model.dart';
 import '../provider/template_provider.dart';
+import '../model/format_template_model.dart';
+import '../provider/format_template_provider.dart';
 
 const _primary = Color(0xFF378ADD);
 
@@ -13,6 +16,7 @@ class TemplateScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final templatesAsync = ref.watch(templatesProvider);
+    final formatTemplatesAsync = ref.watch(formatTemplatesProvider);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
@@ -26,52 +30,27 @@ class TemplateScreen extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 헤더
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            '회의 템플릿',
-                            style: TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '자주 쓰는 안건 구성을 저장해두고 새 회의에서 불러오세요',
-                            style: TextStyle(
-                              fontSize: 14,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                      ElevatedButton.icon(
-                        onPressed: () => _openForm(context, ref),
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('새 템플릿 만들기'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: _primary,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                      ),
-                    ],
+                  // 페이지 헤더
+                  const Text(
+                    '회의 템플릿',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.w600),
                   ),
-
+                  const SizedBox(height: 4),
+                  Text(
+                    '안건 템플릿으로 회의를 빠르게 시작하고, 서식 템플릿으로 회의록 형식을 지정하세요',
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                  ),
                   const SizedBox(height: 32),
 
+                  // 섹션 1 — 안건 템플릿
+                  _SectionHeader(
+                    title: '안건 템플릿',
+                    subtitle: '회의 시작 시 안건·참석자를 미리 채워줍니다',
+                    buttonIcon: Icons.add,
+                    buttonLabel: '새 안건 템플릿',
+                    onPressed: () => _openForm(context, ref),
+                  ),
+                  const SizedBox(height: 16),
                   templatesAsync.when(
                     data: (templates) => templates.isEmpty
                         ? _EmptyState(onCreate: () => _openForm(context, ref))
@@ -83,16 +62,50 @@ class TemplateScreen extends ConsumerWidget {
                                 .toList(),
                           ),
                     loading: () => const Padding(
-                      padding: EdgeInsets.only(top: 80),
+                      padding: EdgeInsets.only(top: 40),
                       child: Center(child: CircularProgressIndicator()),
                     ),
                     error: (e, _) => Padding(
-                      padding: const EdgeInsets.only(top: 80),
-                      child: Center(
-                        child: Text(
-                          '불러오기 실패: $e',
-                          style: TextStyle(color: Colors.grey[600]),
-                        ),
+                      padding: const EdgeInsets.only(top: 40),
+                      child: Text(
+                        '불러오기 실패: $e',
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 48),
+
+                  // 섹션 2 — 서식 템플릿
+                  _SectionHeader(
+                    title: '서식 템플릿',
+                    subtitle: '회의록 샘플(docx·md·txt)을 올리면 AI가 그 형식대로 생성합니다',
+                    buttonIcon: Icons.upload_file,
+                    buttonLabel: '파일 업로드',
+                    onPressed: () => _uploadFormat(context, ref),
+                  ),
+                  const SizedBox(height: 16),
+                  formatTemplatesAsync.when(
+                    data: (items) => items.isEmpty
+                        ? _FormatEmptyState(
+                            onUpload: () => _uploadFormat(context, ref),
+                          )
+                        : Wrap(
+                            spacing: 20,
+                            runSpacing: 20,
+                            children: items
+                                .map((t) => _FormatTemplateCard(template: t))
+                                .toList(),
+                          ),
+                    loading: () => const Padding(
+                      padding: EdgeInsets.only(top: 40),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
+                    error: (e, _) => Padding(
+                      padding: const EdgeInsets.only(top: 40),
+                      child: Text(
+                        '불러오기 실패: $e',
+                        style: TextStyle(color: Colors.grey[600]),
                       ),
                     ),
                   ),
@@ -111,10 +124,104 @@ class TemplateScreen extends ConsumerWidget {
       builder: (_) => const TemplateFormDialog(),
     );
   }
+
+  // 파일 선택 → 업로드 → 서식 템플릿 생성
+  Future<void> _uploadFormat(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['docx', 'md', 'txt'],
+      withData: true,
+    );
+    if (result == null || result.files.isEmpty) return;
+
+    final file = result.files.first;
+    final bytes = file.bytes;
+    if (bytes == null) {
+      messenger.showSnackBar(
+        const SnackBar(content: Text('파일을 읽지 못했어요')),
+      );
+      return;
+    }
+
+    messenger.showSnackBar(
+      const SnackBar(content: Text('업로드 중...')),
+    );
+    try {
+      await ref.read(uploadFormatTemplateProvider)(bytes, file.name);
+      ref.invalidate(formatTemplatesProvider);
+      messenger.showSnackBar(
+        const SnackBar(content: Text('서식 템플릿을 추가했어요')),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('업로드 실패: $e')));
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
-// 템플릿 카드
+// 섹션 헤더 (제목 + 설명 + 액션 버튼)
+// ---------------------------------------------------------------------------
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData buttonIcon;
+  final String buttonLabel;
+  final VoidCallback onPressed;
+
+  const _SectionHeader({
+    required this.title,
+    required this.subtitle,
+    required this.buttonIcon,
+    required this.buttonLabel,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 13, color: Colors.grey[500]),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 16),
+        ElevatedButton.icon(
+          onPressed: onPressed,
+          icon: Icon(buttonIcon, size: 18),
+          label: Text(buttonLabel),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 안건 템플릿 카드
 // ---------------------------------------------------------------------------
 class _TemplateCard extends ConsumerWidget {
   final Template template;
@@ -315,7 +422,153 @@ class _TemplateCard extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
-// 빈 상태
+// 서식 템플릿 카드
+// ---------------------------------------------------------------------------
+class _FormatTemplateCard extends ConsumerWidget {
+  final FormatTemplate template;
+
+  const _FormatTemplateCard({required this.template});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      width: 340,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 1, right: 8),
+                child: Icon(
+                  Icons.description_outlined,
+                  size: 18,
+                  color: _primary,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  template.name,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              InkWell(
+                onTap: () => _confirmDelete(context, ref),
+                borderRadius: BorderRadius.circular(6),
+                child: Padding(
+                  padding: const EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.delete_outline,
+                    size: 20,
+                    color: Colors.grey[400],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (template.sourceFilename != null &&
+              template.sourceFilename!.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              template.sourceFilename!,
+              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+          const SizedBox(height: 12),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF7F7F8),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              template.content.isEmpty ? '(미리보기 없음)' : template.content,
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey[700],
+                height: 1.4,
+              ),
+              maxLines: 6,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Icon(Icons.auto_awesome, size: 13, color: Colors.grey[400]),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '회의 상세에서 "서식 적용 생성"으로 사용',
+                  style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('서식 템플릿 삭제'),
+        content: Text("'${template.name}' 서식을 삭제할까요?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(
+              foregroundColor: const Color(0xFFA32D2D),
+            ),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+
+    try {
+      await ref.read(deleteFormatTemplateProvider)(template.formatTemplateId);
+      ref.invalidate(formatTemplatesProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('서식 템플릿을 삭제했어요')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('삭제 실패: $e')));
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 빈 상태 — 안건 템플릿
 // ---------------------------------------------------------------------------
 class _EmptyState extends StatelessWidget {
   final VoidCallback onCreate;
@@ -326,7 +579,7 @@ class _EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 80),
+      padding: const EdgeInsets.symmetric(vertical: 48),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -335,10 +588,10 @@ class _EmptyState extends StatelessWidget {
       child: Column(
         children: [
           Icon(Icons.dashboard_customize_outlined,
-              size: 48, color: Colors.grey[300]),
-          const SizedBox(height: 16),
+              size: 44, color: Colors.grey[300]),
+          const SizedBox(height: 14),
           Text(
-            '아직 저장된 템플릿이 없어요',
+            '아직 저장된 안건 템플릿이 없어요',
             style: TextStyle(fontSize: 15, color: Colors.grey[600]),
           ),
           const SizedBox(height: 4),
@@ -346,11 +599,11 @@ class _EmptyState extends StatelessWidget {
             '자주 쓰는 안건 구성을 템플릿으로 만들어보세요',
             style: TextStyle(fontSize: 13, color: Colors.grey[400]),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 18),
           OutlinedButton.icon(
             onPressed: onCreate,
             icon: const Icon(Icons.add, size: 16),
-            label: const Text('새 템플릿 만들기'),
+            label: const Text('새 안건 템플릿'),
             style: OutlinedButton.styleFrom(
               foregroundColor: _primary,
               side: const BorderSide(color: _primary),
@@ -368,7 +621,59 @@ class _EmptyState extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// 템플릿 생성 다이얼로그
+// 빈 상태 — 서식 템플릿
+// ---------------------------------------------------------------------------
+class _FormatEmptyState extends StatelessWidget {
+  final VoidCallback onUpload;
+
+  const _FormatEmptyState({required this.onUpload});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 48),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.upload_file, size: 40, color: Colors.grey[300]),
+          const SizedBox(height: 12),
+          Text(
+            '서식 샘플을 올려보세요',
+            style: TextStyle(fontSize: 15, color: Colors.grey[600]),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'docx · md · txt 회의록 예시를 올리면 AI가 그 형식대로 만들어줍니다',
+            style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+          ),
+          const SizedBox(height: 18),
+          OutlinedButton.icon(
+            onPressed: onUpload,
+            icon: const Icon(Icons.upload_file, size: 16),
+            label: const Text('파일 업로드'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: _primary,
+              side: const BorderSide(color: _primary),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// 안건 템플릿 생성 다이얼로그
 // ---------------------------------------------------------------------------
 class TemplateFormDialog extends ConsumerStatefulWidget {
   const TemplateFormDialog({super.key});
@@ -481,7 +786,7 @@ class _TemplateFormDialogState extends ConsumerState<TemplateFormDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                '새 템플릿 만들기',
+                '새 안건 템플릿',
                 style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 20),

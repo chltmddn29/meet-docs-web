@@ -24,4 +24,10 @@ class ApiConstants {
   // templates
   static const String templates = '/api/templates';
   static String template(int id) => '/api/templates/$id';
+
+  // format templates (서식 — 파일 업로드 기반)
+  static const String formatTemplates = '/api/format-templates';
+  static const String uploadFormatTemplate = '/api/format-templates/upload';
+  static const String generateFormatted = '/api/format-templates/generate';
+  static String formatTemplate(int id) => '/api/format-templates/$id';
 }

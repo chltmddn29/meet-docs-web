@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -7,6 +8,8 @@ import '../../../core/constants/api_constants.dart';
 import '../../../shared/widgets/sidebar.dart';
 import '../model/meeting_model.dart';
 import '../provider/meeting_provider.dart';
+import '../../template/model/format_template_model.dart';
+import '../../template/provider/format_template_provider.dart';
 
 class DetailScreen extends ConsumerWidget {
   final int meetingId;
@@ -262,6 +265,137 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
     }
   }
 
+  // 서식 적용 생성: 서식 템플릿 선택 → AI가 그 형식대로 회의록 생성 → 미리보기
+  Future<void> _generateWithFormat() async {
+    final List<FormatTemplate> templates;
+    try {
+      templates = await ref.read(formatTemplatesProvider.future);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('서식 목록 로드 실패: $e')));
+      }
+      return;
+    }
+    if (!mounted) return;
+
+    if (templates.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('먼저 "회의 템플릿 > 서식 템플릿"에서 파일을 올려주세요'),
+        ),
+      );
+      return;
+    }
+
+    final selected = await showDialog<FormatTemplate>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('서식 선택'),
+        children: templates
+            .map(
+              (t) => SimpleDialogOption(
+                onPressed: () => Navigator.pop(ctx, t),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.description_outlined,
+                        size: 18,
+                        color: Color(0xFF378ADD),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(child: Text(t.name)),
+                    ],
+                  ),
+                ),
+              ),
+            )
+            .toList(),
+      ),
+    );
+    if (selected == null || !mounted) return;
+
+    setState(() => _loadingPlatform = '_format');
+    try {
+      final markdown = await ref.read(generateFormattedProvider)(
+        widget.meetingId,
+        selected.formatTemplateId,
+      );
+      if (!mounted) return;
+      if (markdown.trim().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('생성된 내용이 비어있어요')),
+        );
+        return;
+      }
+      _showMarkdownDialog('${selected.name} 서식', markdown);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('생성 실패: $e')));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingPlatform = null);
+    }
+  }
+
+  // 마크다운을 모달로 렌더링 (복사 버튼 포함)
+  void _showMarkdownDialog(String title, String markdown) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        child: Container(
+          width: 640,
+          constraints: const BoxConstraints(maxHeight: 720),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: markdown));
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('복사했어요')),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.copy, size: 16),
+                    label: const Text('복사'),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+              const Divider(),
+              Flexible(child: Markdown(data: markdown, shrinkWrap: true)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   String _resolveUrl(String platform, dynamic result) {
     switch (platform) {
       case 'pdf':
@@ -324,6 +458,24 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
                   )
                 : const Icon(Icons.visibility_outlined, size: 18),
             label: const Text('미리보기'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF378ADD),
+              side: const BorderSide(color: Color(0xFF378ADD)),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // 서식 적용 생성 — 업로드한 서식 템플릿 형식대로 AI가 회의록 재생성
+          OutlinedButton.icon(
+            onPressed: _loadingPlatform == '_format' ? null : _generateWithFormat,
+            icon: _loadingPlatform == '_format'
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.auto_awesome, size: 18),
+            label: const Text('서식 적용 생성'),
             style: OutlinedButton.styleFrom(
               foregroundColor: const Color(0xFF378ADD),
               side: const BorderSide(color: Color(0xFF378ADD)),
