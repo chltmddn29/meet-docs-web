@@ -20,9 +20,12 @@ class ApiConstants {
   // audio
   static const String audioFiles = '/api/audio-files';
   static String deleteAudio(int id) => '/api/audio-files/$id';
-  // 재생: 브라우저에서 직접 열어 재생하므로 전체 URL
+  // 재생: 브라우저에서 직접 열어 재생(inline)
   static String downloadAudioFile(int id) =>
       '$baseUrl/api/audio-files/$id/download';
+  // 다운로드: attachment 로 받기
+  static String downloadAudioFileAttachment(int id) =>
+      '$baseUrl/api/audio-files/$id/download?download=true';
 
   // templates
   static const String templates = '/api/templates';

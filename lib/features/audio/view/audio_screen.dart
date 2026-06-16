@@ -95,6 +95,26 @@ class AudioScreen extends ConsumerWidget {
                                           tooltip: '재생',
                                         ),
                                         IconButton(
+                                          onPressed: () => downloadAudio(
+                                            context,
+                                            f.transcriptId,
+                                          ),
+                                          icon: const Icon(
+                                            Icons.download_outlined,
+                                          ),
+                                          color: const Color(0xFF378ADD),
+                                          tooltip: '다운로드',
+                                        ),
+                                        IconButton(
+                                          onPressed: () => regenerateMinutes(
+                                            context,
+                                            f.meetingId,
+                                          ),
+                                          icon: const Icon(Icons.refresh),
+                                          color: const Color(0xFF0F6E56),
+                                          tooltip: '회의록 다시 생성',
+                                        ),
+                                        IconButton(
                                           onPressed: () => deleteAudio(
                                             context,
                                             ref,

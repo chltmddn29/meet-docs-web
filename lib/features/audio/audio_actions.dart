@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/constants/api_constants.dart';
 import '../meeting/provider/meeting_provider.dart';
@@ -13,6 +14,22 @@ Future<void> playAudio(BuildContext context, int transcriptId) async {
       context,
     ).showSnackBar(const SnackBar(content: Text('재생할 수 없습니다')));
   }
+}
+
+// 음성 다운로드: attachment URL을 열어 파일로 저장
+Future<void> downloadAudio(BuildContext context, int transcriptId) async {
+  final url = ApiConstants.downloadAudioFileAttachment(transcriptId);
+  final ok = await launchUrl(Uri.parse(url), webOnlyWindowName: '_blank');
+  if (!ok && context.mounted) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('다운로드할 수 없습니다')));
+  }
+}
+
+// 저장된 오디오로 회의록 다시 생성: result 화면으로 이동(STT→분석→저장 재실행)
+void regenerateMinutes(BuildContext context, int meetingId) {
+  context.go('/result/$meetingId');
 }
 
 // 음성 삭제: 확인 → 삭제 → 목록 갱신

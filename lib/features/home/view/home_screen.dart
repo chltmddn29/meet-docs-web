@@ -265,6 +265,34 @@ class _AudioItem extends ConsumerWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton.icon(
+                  onPressed: () => downloadAudio(context, audio.transcriptId),
+                  icon: const Icon(Icons.download_outlined, size: 16),
+                  label: const Text('다운로드'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF378ADD),
+                    side: BorderSide(color: Colors.grey[300]!),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => regenerateMinutes(context, audio.meetingId),
+                  icon: const Icon(Icons.refresh, size: 16),
+                  label: const Text('회의록 다시 생성'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0F6E56),
+                    side: BorderSide(color: Colors.grey[300]!),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
                   onPressed: () => deleteAudio(context, ref, audio.transcriptId),
                   icon: const Icon(Icons.delete_outline, size: 16),
                   label: const Text('삭제'),
