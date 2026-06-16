@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/network/error_message.dart';
 import '../../../shared/widgets/sidebar.dart';
 import '../model/meeting_model.dart';
 import '../provider/meeting_provider.dart';
@@ -260,7 +261,7 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('미리보기 실패: $e')));
+        ).showSnackBar(SnackBar(content: Text('미리보기 실패: ${friendlyError(e)}')));
       }
     } finally {
       if (mounted) setState(() => _loadingPlatform = null);
@@ -276,7 +277,7 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('서식 목록 로드 실패: $e')));
+        ).showSnackBar(SnackBar(content: Text('서식 목록 로드 실패: ${friendlyError(e)}')));
       }
       return;
     }
@@ -338,7 +339,7 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('생성 실패: $e')));
+        ).showSnackBar(SnackBar(content: Text('생성 실패: ${friendlyError(e)}')));
       }
     } finally {
       if (mounted) setState(() => _loadingPlatform = null);
@@ -428,7 +429,7 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('실패: $e')));
+        ).showSnackBar(SnackBar(content: Text('실패: ${friendlyError(e)}')));
       }
     } finally {
       if (mounted) setState(() => _loadingPlatform = null);
@@ -629,11 +630,18 @@ class _RawTextEditSectionState extends ConsumerState<_RawTextEditSection> {
   }
 
   Future<void> _save() async {
+    // 빈 텍스트 사전 차단 (서버 왕복 없이 즉시 안내)
+    if (_controller.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('내용을 입력해주세요')),
+      );
+      return;
+    }
     setState(() => _isSaving = true);
     try {
       await ref.read(updateRawTextProvider)(
         widget.meetingId,
-        _controller.text,
+        _controller.text.trim(),
       );
       ref.invalidate(meetingDetailProvider(widget.meetingId));
       if (mounted) {
@@ -645,7 +653,7 @@ class _RawTextEditSectionState extends ConsumerState<_RawTextEditSection> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('저장 실패: $e')),
+          SnackBar(content: Text('저장 실패: ${friendlyError(e)}')),
         );
       }
     } finally {

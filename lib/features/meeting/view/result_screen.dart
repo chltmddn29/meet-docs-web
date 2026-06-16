@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:dio/dio.dart';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/network/error_message.dart';
 import '../../../shared/widgets/sidebar.dart';
 import '../provider/meeting_provider.dart';
 import '../model/meeting_model.dart';
@@ -45,18 +45,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
       setState(() => _step = 4);
       ref.invalidate(meetingDetailProvider(widget.meetingId));
     } catch (e) {
-      String msg = e.toString();
-      if (e is DioException) {
-        final code = e.response?.statusCode;
-        if (code == 400) {
-          msg = '400 분석할 내용이 부족합니다';
-        } else {
-          msg = e.response?.data?.toString() ?? e.message ?? msg;
-        }
-      }
       setState(() {
         _step = -1;
-        _errorMessage = msg;
+        _errorMessage = friendlyError(e);
       });
     }
   }
