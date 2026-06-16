@@ -52,7 +52,14 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
           // WAV는 웹에서 Web Audio(AudioContext)로 메인스레드 PCM 캡처 →
           // 백그라운드 탭에서 suspend되어 녹음이 끊김.
           // Opus/WebM은 MediaRecorder 네이티브 파이프라인이라 백그라운드에서도 유지됨.
-          const RecordConfig(encoder: AudioEncoder.opus),
+          const RecordConfig(
+            encoder: AudioEncoder.opus,
+            sampleRate: 16000, // Whisper 처리 표준(음성인식 최적)
+            numChannels: 1, // 모노
+            noiseSuppress: true, // 잡음 억제 → 인식률↑
+            echoCancel: true, // 에코 제거
+            autoGain: true, // 자동 볼륨 보정
+          ),
           path: '',
         );
         setState(() {
