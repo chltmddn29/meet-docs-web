@@ -87,37 +87,6 @@ class Sidebar extends StatelessWidget {
           ),
 
           const Spacer(),
-
-          // 저장소 사용량
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Divider(),
-                const SizedBox(height: 8),
-                Text(
-                  '저장소 사용량',
-                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-                ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: 0.35,
-                    backgroundColor: Colors.grey[200],
-                    color: const Color(0xFF378ADD),
-                    minHeight: 6,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '3.5GB / 10GB',
-                  style: TextStyle(fontSize: 11, color: Colors.grey[500]),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
