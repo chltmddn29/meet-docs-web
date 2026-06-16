@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/widgets/sidebar.dart';
 import '../../meeting/provider/meeting_provider.dart';
+import '../audio_actions.dart';
 
 class AudioScreen extends ConsumerWidget {
   const AudioScreen({super.key});
@@ -87,16 +88,23 @@ class AudioScreen extends ConsumerWidget {
                                           ),
                                         ),
                                         IconButton(
-                                          onPressed: () {},
+                                          onPressed: () =>
+                                              playAudio(context, f.transcriptId),
                                           icon: const Icon(Icons.play_arrow),
                                           color: const Color(0xFF378ADD),
+                                          tooltip: '재생',
                                         ),
                                         IconButton(
-                                          onPressed: () {},
+                                          onPressed: () => deleteAudio(
+                                            context,
+                                            ref,
+                                            f.transcriptId,
+                                          ),
                                           icon: const Icon(
                                             Icons.delete_outline,
                                           ),
                                           color: const Color(0xFFA32D2D),
+                                          tooltip: '삭제',
                                         ),
                                       ],
                                     ),

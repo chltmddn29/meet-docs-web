@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../../shared/widgets/sidebar.dart';
 import '../../meeting/provider/meeting_provider.dart';
 import '../../meeting/model/meeting_model.dart';
+import '../../audio/audio_actions.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -225,13 +226,13 @@ class _MeetingItem extends StatelessWidget {
   }
 }
 
-class _AudioItem extends StatelessWidget {
+class _AudioItem extends ConsumerWidget {
   final AudioFile audio;
 
   const _AudioItem({required this.audio});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.only(bottom: 12),
@@ -252,7 +253,7 @@ class _AudioItem extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => playAudio(context, audio.transcriptId),
                   icon: const Icon(Icons.play_arrow, size: 16),
                   label: const Text('재생'),
                   style: OutlinedButton.styleFrom(
@@ -264,7 +265,7 @@ class _AudioItem extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => deleteAudio(context, ref, audio.transcriptId),
                   icon: const Icon(Icons.delete_outline, size: 16),
                   label: const Text('삭제'),
                   style: OutlinedButton.styleFrom(

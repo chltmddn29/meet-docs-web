@@ -416,6 +416,10 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
     setState(() => _loadingPlatform = platform);
     try {
       final result = await _ensureSaved(platform);
+      // 노션은 저장 성공 시 URL이 영구 저장됨 → 버튼이 "열기"로 바뀌도록 갱신
+      if (platform == 'notion') {
+        ref.invalidate(previewProvider(widget.meetingId));
+      }
       final url = _resolveUrl(platform, result);
       if (url.isNotEmpty) await _open(url);
     } catch (e) {
@@ -431,6 +435,20 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
 
   @override
   Widget build(BuildContext context) {
+    // 저장된 노션 URL (있으면 "열기", 없으면 "저장") — 새로고침해도 유지
+    final String? notionUrl =
+        ref.watch(previewProvider(widget.meetingId)).maybeWhen(
+      data: (d) {
+        final saved = d['saved_platforms'];
+        if (saved is Map) {
+          final u = saved['notion'];
+          if (u is String && u.isNotEmpty) return u;
+        }
+        return null;
+      },
+      orElse: () => null,
+    );
+
     return Container(
       width: 700,
       padding: const EdgeInsets.all(24),
@@ -514,8 +532,14 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
                 label: '노션',
                 icon: Icons.web_outlined,
                 loading: _loadingPlatform == 'notion',
-                buttonText: '열기',
-                onTap: () => _download('notion'),
+                buttonText: notionUrl != null ? '열기' : '저장',
+                onTap: () {
+                  if (notionUrl != null) {
+                    _open(notionUrl);
+                  } else {
+                    _download('notion');
+                  }
+                },
               ),
             ],
           ),
