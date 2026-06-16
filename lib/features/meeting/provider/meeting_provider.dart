@@ -55,3 +55,14 @@ final previewProvider = FutureProvider.family<Map<String, dynamic>, int>((
   final response = await dio.get('/api/meetings/$meetingId/preview');
   return response.data as Map<String, dynamic>;
 });
+
+final updateRawTextProvider = Provider((ref) {
+  final dio = ref.read(dioProvider);
+  return (int meetingId, String rawText) async {
+    final response = await dio.put(
+      ApiConstants.updateRawText(meetingId),
+      data: {'raw_text': rawText},
+    );
+    return response.data;
+  };
+});

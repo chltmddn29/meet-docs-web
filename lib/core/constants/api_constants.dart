@@ -28,6 +28,9 @@ class ApiConstants {
   static const String templates = '/api/templates';
   static String template(int id) => '/api/templates/$id';
 
+  // raw text 편집 + 재분석
+  static String updateRawText(int id) => '/api/meetings/$id/raw-text';
+
   // format templates (서식 — 파일 업로드 기반)
   static const String formatTemplates = '/api/format-templates';
   static const String uploadFormatTemplate = '/api/format-templates/upload';

@@ -96,6 +96,8 @@ class DetailScreen extends ConsumerWidget {
                         ),
                       ),
                     const SizedBox(height: 24),
+                    _RawTextEditSection(meetingId: meetingId),
+                    const SizedBox(height: 24),
                     _SaveSection(meetingId: meetingId),
                   ],
                 ),
@@ -596,6 +598,175 @@ class _DownloadButton extends StatelessWidget {
                 ],
               ),
       ),
+    );
+  }
+}
+
+class _RawTextEditSection extends ConsumerStatefulWidget {
+  final int meetingId;
+  const _RawTextEditSection({required this.meetingId});
+
+  @override
+  ConsumerState<_RawTextEditSection> createState() =>
+      _RawTextEditSectionState();
+}
+
+class _RawTextEditSectionState extends ConsumerState<_RawTextEditSection> {
+  bool _isEditMode = false;
+  bool _isSaving = false;
+  late TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _save() async {
+    setState(() => _isSaving = true);
+    try {
+      await ref.read(updateRawTextProvider)(
+        widget.meetingId,
+        _controller.text,
+      );
+      ref.invalidate(meetingDetailProvider(widget.meetingId));
+      if (mounted) {
+        setState(() => _isEditMode = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('저장했어요')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('저장 실패: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final meetingAsync = ref.watch(meetingDetailProvider(widget.meetingId));
+
+    return meetingAsync.maybeWhen(
+      data: (meeting) {
+        final rawText = meeting.rawText ?? '';
+        if (rawText.isEmpty) {
+          return const SizedBox.shrink();
+        }
+
+        if (!_isEditMode && _controller.text.isEmpty) {
+          _controller.text = rawText;
+        }
+
+        return Container(
+          width: 700,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[200]!),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    '음성 원본 텍스트',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                  ),
+                  if (!_isEditMode)
+                    TextButton.icon(
+                      onPressed: () => setState(() => _isEditMode = true),
+                      icon: const Icon(Icons.edit, size: 16),
+                      label: const Text('수정'),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (_isEditMode)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: _controller,
+                      maxLines: 8,
+                      minLines: 4,
+                      decoration: InputDecoration(
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        hintText: '텍스트를 입력하세요',
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Row(
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _isSaving ? null : _save,
+                          icon: _isSaving
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.save, size: 16),
+                          label: Text(_isSaving ? '저장 중' : '저장'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF378ADD),
+                            foregroundColor: Colors.white,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        OutlinedButton.icon(
+                          onPressed: _isSaving
+                              ? null
+                              : () {
+                                  _controller.text = rawText;
+                                  setState(() => _isEditMode = false);
+                                },
+                          icon: const Icon(Icons.close, size: 16),
+                          label: const Text('취소'),
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+              else
+                SingleChildScrollView(
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[50],
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey[200]!),
+                    ),
+                    child: Text(
+                      rawText,
+                      style: const TextStyle(fontSize: 14, height: 1.6),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+      orElse: () => const SizedBox.shrink(),
     );
   }
 }
