@@ -8,6 +8,7 @@ import '../../features/meeting/view/detail_screen.dart';
 import '../../features/history/view/history_screen.dart';
 import '../../features/audio/view/audio_screen.dart';
 import '../../features/meeting/view/transcript_screen.dart';
+import '../../features/template/view/template_screen.dart';
 
 // 애니메이션 없는 페이지 헬퍼
 CustomTransitionPage _noTransition(Widget child) {
@@ -29,7 +30,15 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: '/agenda',
-      pageBuilder: (context, state) => _noTransition(const AgendaScreen()),
+      pageBuilder: (context, state) {
+        final raw = state.uri.queryParameters['template'];
+        final templateId = raw != null ? int.tryParse(raw) : null;
+        return _noTransition(AgendaScreen(templateId: templateId));
+      },
+    ),
+    GoRoute(
+      path: '/templates',
+      pageBuilder: (context, state) => _noTransition(const TemplateScreen()),
     ),
     GoRoute(
       path: '/recording/:meetingId',

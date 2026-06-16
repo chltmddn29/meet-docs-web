@@ -20,4 +20,8 @@ class ApiConstants {
   // audio
   static const String audioFiles = '/api/audio-files';
   static String deleteAudio(int id) => '/api/audio-files/$id';
+
+  // templates
+  static const String templates = '/api/templates';
+  static String template(int id) => '/api/templates/$id';
 }

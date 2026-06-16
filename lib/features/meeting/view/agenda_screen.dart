@@ -3,9 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../shared/widgets/sidebar.dart';
 import '../provider/meeting_provider.dart';
+import '../../template/model/template_model.dart';
+import '../../template/provider/template_provider.dart';
 
 class AgendaScreen extends ConsumerStatefulWidget {
-  const AgendaScreen({super.key});
+  final int? templateId;
+
+  const AgendaScreen({super.key, this.templateId});
 
   @override
   ConsumerState<AgendaScreen> createState() => _AgendaScreenState();
@@ -18,6 +22,60 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
     TextEditingController(),
   ];
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // 템플릿으로 시작한 경우 자동으로 불러오기
+    if (widget.templateId != null) {
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _loadTemplate(widget.templateId!),
+      );
+    }
+  }
+
+  Future<void> _loadTemplate(int id) async {
+    try {
+      final t = await ref.read(templateDetailProvider(id).future);
+      if (mounted) _applyTemplate(t);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('템플릿 불러오기 실패: $e')));
+      }
+    }
+  }
+
+  Future<void> _pickTemplate() async {
+    final selected = await showDialog<Template>(
+      context: context,
+      builder: (_) => const _TemplatePickerDialog(),
+    );
+    if (selected != null) _applyTemplate(selected);
+  }
+
+  // 템플릿 내용을 입력 폼에 채워넣기
+  void _applyTemplate(Template t) {
+    if (!mounted) return;
+    setState(() {
+      _titleController.text = t.name;
+      _participantController.text = t.participantList.join(', ');
+      for (final c in _agendaControllers) {
+        c.dispose();
+      }
+      _agendaControllers
+        ..clear()
+        ..addAll(
+          t.agendaItems.isEmpty
+              ? [TextEditingController()]
+              : t.agendaItems.map((a) => TextEditingController(text: a)),
+        );
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text("'${t.name}' 템플릿을 불러왔어요")),
+    );
+  }
 
   @override
   void dispose() {
@@ -131,6 +189,32 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          // 템플릿 불러오기
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _pickTemplate,
+                              icon: const Icon(
+                                Icons.dashboard_customize_outlined,
+                                size: 16,
+                              ),
+                              label: const Text('템플릿 불러오기'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF378ADD),
+                                side: BorderSide(color: Colors.grey[300]!),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          const Divider(height: 1),
+                          const SizedBox(height: 20),
+
                           // 회의 제목
                           const Text(
                             '회의 제목',
@@ -227,6 +311,9 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
                                       controller: controller,
                                       decoration: InputDecoration(
                                         hintText: '안건 입력',
+                                        hintStyle: TextStyle(
+                                          color: Colors.grey[400],
+                                        ),
                                         border: OutlineInputBorder(
                                           borderRadius: BorderRadius.circular(
                                             8,
@@ -326,6 +413,114 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// 새 회의 시작 시 저장된 템플릿을 골라 불러오는 다이얼로그
+class _TemplatePickerDialog extends ConsumerWidget {
+  const _TemplatePickerDialog();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final templatesAsync = ref.watch(templatesProvider);
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 460, maxHeight: 560),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    '템플릿 불러오기',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.close),
+                    iconSize: 20,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: templatesAsync.when(
+                  data: (templates) => templates.isEmpty
+                      ? Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 40),
+                          child: Center(
+                            child: Text(
+                              '저장된 템플릿이 없어요',
+                              style: TextStyle(color: Colors.grey[500]),
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: templates.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(height: 8),
+                          itemBuilder: (_, i) {
+                            final t = templates[i];
+                            return InkWell(
+                              onTap: () => Navigator.pop(context, t),
+                              borderRadius: BorderRadius.circular(8),
+                              child: Container(
+                                padding: const EdgeInsets.all(14),
+                                decoration: BoxDecoration(
+                                  border:
+                                      Border.all(color: Colors.grey[200]!),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      t.name,
+                                      style: const TextStyle(
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '안건 ${t.agendaItems.length}개',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey[500],
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                  loading: () => const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 40),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
+                  error: (e, _) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 40),
+                    child: Center(child: Text('불러오기 실패: $e')),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

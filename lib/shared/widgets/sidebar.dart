@@ -79,6 +79,12 @@ class Sidebar extends StatelessWidget {
             path: '/audio',
             isActive: currentPath == '/audio',
           ),
+          _NavItem(
+            icon: Icons.dashboard_customize_outlined,
+            label: '회의 템플릿',
+            path: '/templates',
+            isActive: currentPath == '/templates',
+          ),
 
           const Spacer(),
 
