@@ -27,11 +27,49 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
   Timer? _timer;
   String _statusText = '녹음 준비 중...';
 
+  // 네트워크 상태 — 녹음 중 서버 연결이 끊기면 즉시 배너로 알림
+  Timer? _netTimer;
+  bool _isOnline = true; // 기본은 연결됨 가정
+  final _netDio = Dio(
+    BaseOptions(
+      baseUrl: ApiConstants.baseUrl,
+      connectTimeout: const Duration(seconds: 5),
+      receiveTimeout: const Duration(seconds: 5),
+    ),
+  );
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _startRecording();
+    _startNetworkWatch();
+  }
+
+  // 5초마다 백엔드 health 체크 → 끊기면 _isOnline=false로 배너 표시.
+  // 사용자가 아무 동작을 하지 않아도 연결 상태가 화면에 바로 반영됨.
+  void _startNetworkWatch() {
+    _checkConnection(); // 즉시 1회
+    _netTimer = Timer.periodic(
+      const Duration(seconds: 5),
+      (_) => _checkConnection(),
+    );
+  }
+
+  Future<void> _checkConnection() async {
+    bool ok;
+    try {
+      final res = await _netDio.get(
+        '/api/health',
+        options: Options(validateStatus: (s) => s != null && s < 500),
+      );
+      ok = res.statusCode != null && res.statusCode! < 500;
+    } catch (_) {
+      ok = false; // 타임아웃·네트워크 오류 = 끊김
+    }
+    if (mounted && ok != _isOnline) {
+      setState(() => _isOnline = ok);
+    }
   }
 
   // 탭/앱을 다시 열었을 때(브라우저가 백그라운드에서 렌더링·타이머를 멈춤)
@@ -42,6 +80,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
         _isRecording &&
         _startTime != null) {
       setState(() => _elapsed = DateTime.now().difference(_startTime!));
+      _checkConnection(); // 돌아오자마자 연결 상태 즉시 갱신
     }
   }
 
@@ -100,6 +139,7 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
+    _netTimer?.cancel();
     _recorder.dispose();
     super.dispose();
   }
@@ -194,18 +234,48 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
           const Sidebar(),
           const VerticalDivider(width: 1),
           Expanded(
-            child: Center(
-              child: meetingAsync.when(
-                data: (meeting) => Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(
-                      meeting.title,
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w600,
-                      ),
+            child: Column(
+              children: [
+                // 네트워크 끊김 배너 — 연결이 끊기면 아무 동작 없이 바로 표시됨
+                if (!_isOnline)
+                  Container(
+                    width: double.infinity,
+                    color: const Color(0xFFA32D2D),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 12,
                     ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: const [
+                        Icon(Icons.wifi_off, color: Colors.white, size: 18),
+                        SizedBox(width: 10),
+                        Flexible(
+                          child: Text(
+                            '서버 연결이 끊겼어요. 녹음은 계속되니 연결이 돌아오면 중지·업로드하세요.',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: Center(
+                    child: meetingAsync.when(
+                      data: (meeting) => Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            meeting.title,
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
                     const SizedBox(height: 8),
                     Text(
                       _statusText,
@@ -337,9 +407,12 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
                     ),
                   ],
                 ),
-                loading: () => const CircularProgressIndicator(),
-                error: (e, _) => Text('오류: $e'),
-              ),
+                      loading: () => const CircularProgressIndicator(),
+                      error: (e, _) => Text('오류: $e'),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
