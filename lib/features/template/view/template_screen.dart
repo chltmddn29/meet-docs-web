@@ -1,7 +1,7 @@
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/utils/web_file_picker.dart';
 import '../../../shared/widgets/sidebar.dart';
 import '../model/template_model.dart';
 import '../provider/template_provider.dart';
@@ -128,27 +128,14 @@ class TemplateScreen extends ConsumerWidget {
   // 파일 선택 → 업로드 → 서식 템플릿 생성
   Future<void> _uploadFormat(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
-    final result = await FilePicker.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['docx', 'md', 'txt'],
-      withData: true,
-    );
-    if (result == null || result.files.isEmpty) return;
-
-    final file = result.files.first;
-    final bytes = file.bytes;
-    if (bytes == null) {
-      messenger.showSnackBar(
-        const SnackBar(content: Text('파일을 읽지 못했어요')),
-      );
-      return;
-    }
+    final picked = await pickFile(['docx', 'md', 'txt']);
+    if (picked == null) return; // 취소 또는 읽기 실패
 
     messenger.showSnackBar(
       const SnackBar(content: Text('업로드 중...')),
     );
     try {
-      await ref.read(uploadFormatTemplateProvider)(bytes, file.name);
+      await ref.read(uploadFormatTemplateProvider)(picked.bytes, picked.name);
       ref.invalidate(formatTemplatesProvider);
       messenger.showSnackBar(
         const SnackBar(content: Text('서식 템플릿을 추가했어요')),
