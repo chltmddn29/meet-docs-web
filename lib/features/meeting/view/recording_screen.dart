@@ -27,6 +27,10 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
   Timer? _timer;
   String _statusText = '녹음 준비 중...';
 
+  // 업로드 실패 시 녹음 바이트를 보관 → 네트워크 복구 후 재업로드 가능
+  List<int>? _pendingBytes;
+  bool _uploadFailed = false;
+
   // 네트워크 상태 — 녹음 중 서버 연결이 끊기면 즉시 배너로 알림
   Timer? _netTimer;
   bool _isOnline = true; // 기본은 연결됨 가정
@@ -68,7 +72,15 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
       ok = false; // 타임아웃·네트워크 오류 = 끊김
     }
     if (mounted && ok != _isOnline) {
-      setState(() => _isOnline = ok);
+      setState(() {
+        _isOnline = ok;
+        // 업로드 실패로 대기 중이면 연결 상태에 맞춰 안내 문구 갱신
+        if (_uploadFailed) {
+          _statusText = ok
+              ? '연결이 복구됐어요 — "다시 업로드"를 눌러주세요'
+              : '서버 연결이 끊겼어요 — 복구되면 다시 업로드할 수 있어요';
+        }
+      });
     }
   }
 
@@ -160,66 +172,90 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
     setState(() {
       _isRecording = false;
       _isUploading = true;
+      _uploadFailed = false;
       _statusText = '녹음 마무리 중...';
     });
 
     try {
-      // 1. 녹음 중지 → blob URL 반환
-      final path = await _recorder.stop();
+      // 녹음 바이트가 아직 없으면 한 번만 캡처(_recorder.stop()은 1회만 호출 가능)
+      if (_pendingBytes == null) {
+        final path = await _recorder.stop();
+        if (path == null || path.isEmpty) {
+          throw Exception('녹음 경로 없음 (마이크/권한 확인 필요)');
+        }
 
-      if (path == null || path.isEmpty) {
-        throw Exception('녹음 경로 없음 (마이크/권한 확인 필요)');
-      }
-
-      // 2. blob URL → 바이트 (별도 Dio 인스턴스, 모든 상태 허용)
-      setState(() => _statusText = '녹음 파일 읽는 중...');
-      final blobDio = Dio();
-      final blobResponse = await blobDio.get<List<int>>(
-        path,
-        options: Options(
-          responseType: ResponseType.bytes,
-          validateStatus: (_) => true,
-        ),
-      );
-      final bytes = blobResponse.data ?? [];
-
-      if (bytes.isEmpty) {
-        throw Exception('녹음 파일이 비어있음 (0 bytes)');
-      }
-
-      // 3. 업로드
-      setState(() => _statusText = '업로드 중... (${bytes.length} bytes)');
-      final dio = ref.read(dioProvider);
-      final formData = FormData.fromMap({
-        'file': MultipartFile.fromBytes(
-          bytes,
-          filename: 'meeting_${widget.meetingId}.webm',
-          contentType: MediaType('audio', 'webm'),
-        ),
-      });
-
-      await dio.post(
-        ApiConstants.uploadAudio(widget.meetingId),
-        data: formData,
-      );
-
-      // 4. 성공 → result로 이동
-      if (mounted) {
-        context.go('/result/${widget.meetingId}');
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          _isUploading = false;
-          _statusText = '실패: $e';
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('실패: $e'),
-            duration: const Duration(seconds: 6),
+        setState(() => _statusText = '녹음 파일 읽는 중...');
+        final blobDio = Dio();
+        final blobResponse = await blobDio.get<List<int>>(
+          path,
+          options: Options(
+            responseType: ResponseType.bytes,
+            validateStatus: (_) => true,
           ),
         );
+        final bytes = blobResponse.data ?? [];
+        if (bytes.isEmpty) {
+          throw Exception('녹음 파일이 비어있음 (0 bytes)');
+        }
+        _pendingBytes = bytes; // 보관 → 실패해도 재업로드 가능
       }
+
+      await _uploadPending();
+    } catch (e) {
+      _onUploadError(e);
+    }
+  }
+
+  // 보관된 바이트를 서버에 업로드 (최초 업로드 + 재시도 공용)
+  Future<void> _uploadPending() async {
+    final bytes = _pendingBytes!;
+    setState(() => _statusText = '업로드 중... (${bytes.length} bytes)');
+    final dio = ref.read(dioProvider);
+    final formData = FormData.fromMap({
+      'file': MultipartFile.fromBytes(
+        bytes,
+        filename: 'meeting_${widget.meetingId}.webm',
+        contentType: MediaType('audio', 'webm'),
+      ),
+    });
+
+    await dio.post(ApiConstants.uploadAudio(widget.meetingId), data: formData);
+
+    // 성공 → 보관본 비우고 result로 이동
+    _pendingBytes = null;
+    if (mounted) context.go('/result/${widget.meetingId}');
+  }
+
+  // 업로드 실패 처리 → 재시도 가능 상태로 전환(녹음 바이트는 보관됨)
+  void _onUploadError(Object e) {
+    if (!mounted) return;
+    setState(() {
+      _isUploading = false;
+      _uploadFailed = true;
+      _statusText = _isOnline
+          ? '업로드 실패 — "다시 업로드"를 눌러 재시도하세요'
+          : '서버 연결이 끊겼어요 — 복구되면 다시 업로드할 수 있어요';
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('업로드 실패: $e (녹음은 보관됨)'),
+        duration: const Duration(seconds: 6),
+      ),
+    );
+  }
+
+  // 재업로드: 네트워크 복구 후 보관된 녹음을 다시 올림
+  Future<void> _retryUpload() async {
+    if (_pendingBytes == null) return;
+    setState(() {
+      _isUploading = true;
+      _uploadFailed = false;
+      _statusText = '다시 업로드 중...';
+    });
+    try {
+      await _uploadPending();
+    } catch (e) {
+      _onUploadError(e);
     }
   }
 
@@ -378,7 +414,13 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
                     ),
                     const SizedBox(height: 40),
                     ElevatedButton.icon(
-                      onPressed: (_isRecording && !_isUploading) ? _stop : null,
+                      // 업로드 중: 비활성 / 실패(보관됨): 온라인일 때만 재업로드 /
+                      // 녹음 중: 중지. 네트워크가 끊긴 동안엔 실수로 눌러도 재업로드만 막힘.
+                      onPressed: _isUploading
+                          ? null
+                          : _uploadFailed
+                          ? (_isOnline ? _retryUpload : null)
+                          : (_isRecording ? _stop : null),
                       icon: _isUploading
                           ? const SizedBox(
                               width: 20,
@@ -388,9 +430,16 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
                                 strokeWidth: 2,
                               ),
                             )
-                          : const Icon(Icons.stop, size: 20),
+                          : Icon(
+                              _uploadFailed ? Icons.refresh : Icons.stop,
+                              size: 20,
+                            ),
                       label: Text(
-                        _isUploading ? '처리 중' : '중지',
+                        _isUploading
+                            ? '처리 중'
+                            : _uploadFailed
+                            ? (_isOnline ? '다시 업로드' : '네트워크 대기 중...')
+                            : '중지',
                         style: const TextStyle(fontSize: 16),
                       ),
                       style: ElevatedButton.styleFrom(
