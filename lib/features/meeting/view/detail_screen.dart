@@ -517,6 +517,22 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
     }
   }
 
+  // 저장 단계 없이 바로 다운로드 URL 열기 (GET이 최신 내용으로 자동 생성)
+  Future<void> _downloadDirect(String platform, String url) async {
+    setState(() => _loadingPlatform = platform);
+    try {
+      await _open(url);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('실패: ${friendlyError(e)}')));
+      }
+    } finally {
+      if (mounted) setState(() => _loadingPlatform = null);
+    }
+  }
+
   // 다운로드: 파일 생성 후 받기 (노션은 열기)
   Future<void> _download(String platform) async {
     setState(() => _loadingPlatform = platform);
@@ -633,6 +649,15 @@ class _SaveSectionState extends ConsumerState<_SaveSection> {
                 icon: Icons.article_outlined,
                 loading: _loadingPlatform == 'docx',
                 onTap: () => _download('docx'),
+              ),
+              _DownloadButton(
+                label: '한글(HWP)',
+                icon: Icons.translate_outlined,
+                loading: _loadingPlatform == 'hwpx',
+                onTap: () => _downloadDirect(
+                  'hwpx',
+                  ApiConstants.downloadHwpx(widget.meetingId),
+                ),
               ),
               _DownloadButton(
                 label: '노션',

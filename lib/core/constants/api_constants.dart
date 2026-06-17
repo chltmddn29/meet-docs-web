@@ -17,6 +17,7 @@ class ApiConstants {
   static String downloadPdf(int id) => '${_dl(id)}/download-pdf';
   static String downloadDocx(int id) => '${_dl(id)}/download-docx';
   static String downloadMarkdown(int id) => '${_dl(id)}/download-markdown';
+  static String downloadHwpx(int id) => '${_dl(id)}/download-hwpx';
 
   // audio
   static const String audioFiles = '/api/audio-files';
