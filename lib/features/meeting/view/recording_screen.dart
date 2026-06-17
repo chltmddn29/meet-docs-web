@@ -74,13 +74,16 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
     if (mounted && ok != _isOnline) {
       setState(() {
         _isOnline = ok;
-        // 업로드 실패로 대기 중이면 연결 상태에 맞춰 안내 문구 갱신
         if (_uploadFailed) {
           _statusText = ok
-              ? '연결이 복구됐어요 — "다시 업로드"를 눌러주세요'
-              : '서버 연결이 끊겼어요 — 복구되면 다시 업로드할 수 있어요';
+              ? '연결이 복구됐어요 — 자동으로 다시 업로드합니다...'
+              : '서버 연결이 끊겼어요 — 복구되면 자동으로 다시 업로드해요';
         }
       });
+      // 연결이 막 복구됐고 보관된 녹음이 있으면 자동 재업로드
+      if (ok && _uploadFailed && !_isUploading && _pendingBytes != null) {
+        _retryUpload();
+      }
     }
   }
 
@@ -200,6 +203,17 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
         _pendingBytes = bytes; // 보관 → 실패해도 재업로드 가능
       }
 
+      // 오프라인이면 업로드를 시도하지 않고 바로 대기 상태로(90초 멈춤 방지).
+      // 네트워크가 돌아오면 health 체크가 자동으로 재업로드함.
+      if (!_isOnline) {
+        setState(() {
+          _isUploading = false;
+          _uploadFailed = true;
+          _statusText = '서버 연결이 끊겼어요 — 복구되면 자동으로 다시 업로드해요';
+        });
+        return;
+      }
+
       await _uploadPending();
     } catch (e) {
       _onUploadError(e);
@@ -219,7 +233,15 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
       ),
     });
 
-    await dio.post(ApiConstants.uploadAudio(widget.meetingId), data: formData);
+    await dio.post(
+      ApiConstants.uploadAudio(widget.meetingId),
+      data: formData,
+      // 업로드 중 연결이 끊겨도 60초 안에 실패로 끝나도록 제한(무한 대기 방지)
+      options: Options(
+        sendTimeout: const Duration(seconds: 60),
+        receiveTimeout: const Duration(seconds: 60),
+      ),
+    );
 
     // 성공 → 보관본 비우고 result로 이동
     _pendingBytes = null;

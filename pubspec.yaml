@@ -66,6 +66,13 @@ flutter:
   # the material Icons class.
   uses-material-design: true
 
+  # 한글 폰트 번들 — CanvasKit는 시스템 폰트 폴백이 불완전해
+  # 일부 한글 글자가 □로 깨짐. 폰트를 직접 포함해 모든 한글 정상 렌더.
+  fonts:
+    - family: NanumGothic
+      fonts:
+        - asset: fonts/NanumGothic.ttf
+
   # To add assets to your application, add an assets section, like this:
   # assets:
   #   - images/a_dot_burr.jpeg

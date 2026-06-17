@@ -17,7 +17,8 @@ class MeetDocsApp extends StatelessWidget {
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF378ADD)),
         useMaterial3: true,
-        fontFamily: 'Pretendard',
+        // 번들된 한글 폰트 사용 (Pretendard는 미번들이라 한글 깨짐 발생했음)
+        fontFamily: 'NanumGothic',
       ),
       routerConfig: appRouter,
     );
