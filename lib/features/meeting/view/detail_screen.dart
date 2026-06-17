@@ -135,53 +135,144 @@ class _AgendaCard extends StatelessWidget {
             '${item.order}. ${item.agenda}',
             style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
           ),
-          if (item.decision != null && item.decision!.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text(
-              '결정',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[500],
-              ),
+          // 내용 (자세히)
+          if (item.content != null && item.content!.isNotEmpty)
+            _TextSection(label: '내용', text: item.content!),
+          // 주요 의견들
+          if (item.discussions.isNotEmpty)
+            _ListSection(
+              label: '주요 의견',
+              items: item.discussions,
+              bullet: '•',
             ),
-            const SizedBox(height: 4),
-            Text(
-              item.decision!,
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: Color(0xFF378ADD),
-              ),
+          // 결정사항 (강조)
+          if (item.decision != null && item.decision!.isNotEmpty)
+            _TextSection(
+              label: '결정',
+              text: item.decision!,
+              color: const Color(0xFF378ADD),
+              bold: true,
             ),
-          ],
-          if (item.actionItems.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Text(
-              '할 일',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                color: Colors.grey[500],
-              ),
+          // 한 일 (완료)
+          if (item.completedItems.isNotEmpty)
+            _ListSection(
+              label: '한 일',
+              items: item.completedItems,
+              icon: Icons.check_circle_outline,
+              iconColor: const Color(0xFF0F6E56),
             ),
-            const SizedBox(height: 8),
-            ...item.actionItems.map(
-              (a) => Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Icon(Icons.check_box_outline_blank, size: 18),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(a, style: const TextStyle(fontSize: 14)),
+          // 할 일 (체크박스)
+          if (item.actionItems.isNotEmpty)
+            _ListSection(
+              label: '할 일',
+              items: item.actionItems,
+              icon: Icons.check_box_outline_blank,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// 라벨 + 단락 텍스트
+class _TextSection extends StatelessWidget {
+  final String label;
+  final String text;
+  final Color? color;
+  final bool bold;
+  const _TextSection({
+    required this.label,
+    required this.text,
+    this.color,
+    this.bold = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[500],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            text,
+            style: TextStyle(
+              fontSize: bold ? 16 : 14,
+              height: 1.5,
+              fontWeight: bold ? FontWeight.w500 : FontWeight.normal,
+              color: color ?? Colors.black87,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// 라벨 + 불릿/아이콘 리스트
+class _ListSection extends StatelessWidget {
+  final String label;
+  final List<String> items;
+  final IconData? icon;
+  final Color? iconColor;
+  final String? bullet;
+  const _ListSection({
+    required this.label,
+    required this.items,
+    this.icon,
+    this.iconColor,
+    this.bullet,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[500],
+            ),
+          ),
+          const SizedBox(height: 8),
+          ...items.map(
+            (a) => Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (icon != null)
+                    Icon(icon, size: 18, color: iconColor)
+                  else
+                    Text(
+                      bullet ?? '•',
+                      style: const TextStyle(fontSize: 14),
                     ),
-                  ],
-                ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      a,
+                      style: const TextStyle(fontSize: 14, height: 1.4),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ],
       ),
     );

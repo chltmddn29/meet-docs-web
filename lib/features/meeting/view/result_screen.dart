@@ -303,26 +303,39 @@ class _AgendaCard extends StatelessWidget {
             '${item.order}. ${item.agenda}',
             style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w500),
           ),
-          if (item.decision != null && item.decision!.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text('결정', style: TextStyle(fontSize: 12, color: Colors.grey[500])),
-            const SizedBox(height: 4),
-            Text(item.decision!, style: const TextStyle(fontSize: 14)),
-          ],
-          if (item.actionItems.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Text(
-              '할 일',
-              style: TextStyle(fontSize: 12, color: Colors.grey[500]),
-            ),
-            const SizedBox(height: 4),
-            ...item.actionItems.map(
+          if (item.content != null && item.content!.isNotEmpty)
+            _section('내용', text: item.content),
+          if (item.discussions.isNotEmpty)
+            _section('주요 의견', list: item.discussions),
+          if (item.decision != null && item.decision!.isNotEmpty)
+            _section('결정', text: item.decision),
+          if (item.completedItems.isNotEmpty)
+            _section('한 일', list: item.completedItems),
+          if (item.actionItems.isNotEmpty)
+            _section('할 일', list: item.actionItems),
+        ],
+      ),
+    );
+  }
+
+  // 라벨 + 단락 또는 불릿 리스트
+  Widget _section(String label, {String? text, List<String>? list}) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label, style: TextStyle(fontSize: 12, color: Colors.grey[500])),
+          const SizedBox(height: 4),
+          if (text != null)
+            Text(text, style: const TextStyle(fontSize: 14, height: 1.5))
+          else
+            ...list!.map(
               (a) => Padding(
                 padding: const EdgeInsets.only(top: 2),
                 child: Text('• $a', style: const TextStyle(fontSize: 14)),
               ),
             ),
-          ],
         ],
       ),
     );

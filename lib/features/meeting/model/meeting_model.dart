@@ -48,7 +48,9 @@ class AgendaItem {
   final String agenda;
   final int order;
   final String? content;
+  final List<String> discussions;
   final String? decision;
+  final List<String> completedItems;
   final List<String> actionItems;
 
   AgendaItem({
@@ -56,25 +58,25 @@ class AgendaItem {
     required this.agenda,
     required this.order,
     this.content,
+    this.discussions = const [],
     this.decision,
+    this.completedItems = const [],
     this.actionItems = const [],
   });
 
-  factory AgendaItem.fromJson(Map<String, dynamic> json) {
-    List<String> actions = [];
-    if (json['action_items'] != null) {
-      if (json['action_items'] is List) {
-        actions = List<String>.from(json['action_items']);
-      }
-    }
+  static List<String> _strList(dynamic v) =>
+      v is List ? v.map((e) => e.toString()).toList() : <String>[];
 
+  factory AgendaItem.fromJson(Map<String, dynamic> json) {
     return AgendaItem(
       itemId: json['item_id'],
       agenda: json['agenda'] ?? '',
       order: json['order'] ?? 0,
       content: json['content'],
+      discussions: _strList(json['discussions']),
       decision: json['decision'],
-      actionItems: actions,
+      completedItems: _strList(json['completed_items']),
+      actionItems: _strList(json['action_items']),
     );
   }
 }
