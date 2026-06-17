@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/widgets/sidebar.dart';
+import '../../../shared/widgets/async_views.dart';
 import '../../meeting/provider/meeting_provider.dart';
 import '../audio_actions.dart';
 
@@ -132,9 +133,14 @@ class AudioScreen extends ConsumerWidget {
                                 )
                                 .toList(),
                           ),
-                    loading: () =>
-                        const Center(child: CircularProgressIndicator()),
-                    error: (e, _) => Text('오류: $e'),
+                    loading: () => const Padding(
+                      padding: EdgeInsets.all(40),
+                      child: LoadingView(),
+                    ),
+                    error: (e, _) => ErrorRetryView(
+                      error: e,
+                      onRetry: () => ref.invalidate(audioFilesProvider),
+                    ),
                   ),
                 ],
               ),

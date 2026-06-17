@@ -4,6 +4,7 @@ class ApiConstants {
   // meetings
   static const String meetings = '/api/meetings';
   static String meeting(int id) => '/api/meetings/$id';
+  static String deleteMeeting(int id) => '/api/meetings/$id';
   static String uploadAudio(int id) => '/api/meetings/$id/upload-audio';
   static String processAudio(int id) => '/api/meetings/$id/process';
   static String analyzeMeeting(int id) => '/api/meetings/$id/analyze';

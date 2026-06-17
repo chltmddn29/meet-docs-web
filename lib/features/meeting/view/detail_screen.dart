@@ -7,6 +7,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/network/error_message.dart';
 import '../../../shared/widgets/sidebar.dart';
+import '../../../shared/widgets/async_views.dart';
 import '../model/meeting_model.dart';
 import '../provider/meeting_provider.dart';
 import '../../template/model/format_template_model.dart';
@@ -103,8 +104,11 @@ class DetailScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('오류: $e')),
+              loading: () => const LoadingView(),
+              error: (e, _) => ErrorRetryView(
+                error: e,
+                onRetry: () => ref.invalidate(meetingDetailProvider(meetingId)),
+              ),
             ),
           ),
         ],

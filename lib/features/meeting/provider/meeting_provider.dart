@@ -73,3 +73,11 @@ final todosProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final response = await dio.get(ApiConstants.todos);
   return response.data as Map<String, dynamic>;
 });
+
+// 회의 삭제
+final deleteMeetingProvider = Provider((ref) {
+  final dio = ref.read(dioProvider);
+  return (int meetingId) async {
+    await dio.delete(ApiConstants.deleteMeeting(meetingId));
+  };
+});
