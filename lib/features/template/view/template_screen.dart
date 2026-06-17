@@ -79,7 +79,7 @@ class TemplateScreen extends ConsumerWidget {
                   // 섹션 2 — 서식 템플릿
                   _SectionHeader(
                     title: '서식 템플릿',
-                    subtitle: '회의록 샘플(docx·md·txt)을 올리면 AI가 그 형식대로 생성합니다',
+                    subtitle: '회의록 샘플(docx·hwp·hwpx·md·txt)을 올리면 AI가 그 형식대로 생성합니다',
                     buttonIcon: Icons.upload_file,
                     buttonLabel: '파일 업로드',
                     onPressed: () => _uploadFormat(context, ref),
@@ -128,7 +128,7 @@ class TemplateScreen extends ConsumerWidget {
   // 파일 선택 → 업로드 → 서식 템플릿 생성
   Future<void> _uploadFormat(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
-    final picked = await pickFile(['docx', 'md', 'txt']);
+    final picked = await pickFile(['docx', 'hwp', 'hwpx', 'md', 'txt']);
     if (picked == null) return; // 취소 또는 읽기 실패
 
     messenger.showSnackBar(
@@ -635,7 +635,7 @@ class _FormatEmptyState extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            'docx · md · txt 회의록 예시를 올리면 AI가 그 형식대로 만들어줍니다',
+            'docx · hwp · hwpx · md · txt 회의록 예시를 올리면 AI가 그 형식대로 만들어줍니다',
             style: TextStyle(fontSize: 12, color: Colors.grey[400]),
           ),
           const SizedBox(height: 18),
