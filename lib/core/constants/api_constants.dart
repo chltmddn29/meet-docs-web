@@ -34,6 +34,9 @@ class ApiConstants {
   // raw text 편집 + 재분석
   static String updateRawText(int id) => '/api/meetings/$id/raw-text';
 
+  // 할 일 모아보기
+  static const String todos = '/api/todos';
+
   // format templates (서식 — 파일 업로드 기반)
   static const String formatTemplates = '/api/format-templates';
   static const String uploadFormatTemplate = '/api/format-templates/upload';

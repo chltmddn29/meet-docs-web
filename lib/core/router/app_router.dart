@@ -9,6 +9,7 @@ import '../../features/history/view/history_screen.dart';
 import '../../features/audio/view/audio_screen.dart';
 import '../../features/meeting/view/transcript_screen.dart';
 import '../../features/template/view/template_screen.dart';
+import '../../features/todo/view/todo_screen.dart';
 
 // 애니메이션 없는 페이지 헬퍼
 CustomTransitionPage _noTransition(Widget child) {
@@ -39,6 +40,10 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/templates',
       pageBuilder: (context, state) => _noTransition(const TemplateScreen()),
+    ),
+    GoRoute(
+      path: '/todos',
+      pageBuilder: (context, state) => _noTransition(const TodoScreen()),
     ),
     GoRoute(
       path: '/recording/:meetingId',

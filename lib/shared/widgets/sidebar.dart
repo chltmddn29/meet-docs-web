@@ -74,6 +74,12 @@ class Sidebar extends StatelessWidget {
             isActive: currentPath == '/history',
           ),
           _NavItem(
+            icon: Icons.checklist_outlined,
+            label: '할 일',
+            path: '/todos',
+            isActive: currentPath == '/todos',
+          ),
+          _NavItem(
             icon: Icons.mic_outlined,
             label: '음성 기록',
             path: '/audio',

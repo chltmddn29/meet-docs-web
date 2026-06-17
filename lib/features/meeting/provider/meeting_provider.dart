@@ -66,3 +66,10 @@ final updateRawTextProvider = Provider((ref) {
     return response.data;
   };
 });
+
+// 할 일 모아보기 — 전체 회의의 할 일/한 일 집계
+final todosProvider = FutureProvider<Map<String, dynamic>>((ref) async {
+  final dio = ref.read(dioProvider);
+  final response = await dio.get(ApiConstants.todos);
+  return response.data as Map<String, dynamic>;
+});
