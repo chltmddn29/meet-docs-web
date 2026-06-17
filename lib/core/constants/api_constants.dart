@@ -43,5 +43,6 @@ class ApiConstants {
   static const String formatTemplates = '/api/format-templates';
   static const String uploadFormatTemplate = '/api/format-templates/upload';
   static const String generateFormatted = '/api/format-templates/generate';
+  static const String addExampleFormatTemplates = '/api/format-templates/examples';
   static String formatTemplate(int id) => '/api/format-templates/$id';
 }

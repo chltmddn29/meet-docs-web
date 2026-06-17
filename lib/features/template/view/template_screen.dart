@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/utils/web_file_picker.dart';
+import '../../../core/network/error_message.dart';
 import '../../../shared/widgets/sidebar.dart';
 import '../model/template_model.dart';
 import '../provider/template_provider.dart';
@@ -84,7 +85,19 @@ class TemplateScreen extends ConsumerWidget {
                     buttonLabel: '파일 업로드',
                     onPressed: () => _uploadFormat(context, ref),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => _addExamples(context, ref),
+                      icon: const Icon(Icons.auto_awesome, size: 16),
+                      label: const Text('예시 서식 추가 (플레이스홀더 데모)'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: const Color(0xFF378ADD),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   formatTemplatesAsync.when(
                     data: (items) => items.isEmpty
                         ? _FormatEmptyState(
@@ -142,6 +155,24 @@ class TemplateScreen extends ConsumerWidget {
       );
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('업로드 실패: $e')));
+    }
+  }
+
+  // 예시 서식(플레이스홀더 데모) 추가
+  Future<void> _addExamples(BuildContext context, WidgetRef ref) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final added = await ref.read(addExampleFormatTemplatesProvider)();
+      ref.invalidate(formatTemplatesProvider);
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            added > 0 ? '예시 서식 $added개를 추가했어요' : '예시 서식이 이미 있어요',
+          ),
+        ),
+      );
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('예시 추가 실패: ${friendlyError(e)}')));
     }
   }
 }

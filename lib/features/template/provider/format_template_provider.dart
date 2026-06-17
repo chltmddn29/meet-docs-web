@@ -38,6 +38,15 @@ final deleteFormatTemplateProvider = Provider((ref) {
   };
 });
 
+// 예시 서식 추가 (플레이스홀더 데모) → 추가된 개수 반환
+final addExampleFormatTemplatesProvider = Provider((ref) {
+  final dio = ref.read(dioProvider);
+  return () async {
+    final response = await dio.post(ApiConstants.addExampleFormatTemplates);
+    return (response.data['added'] ?? 0) as int;
+  };
+});
+
 // 회의 원본을 서식대로 AI 생성 → 마크다운 반환
 final generateFormattedProvider = Provider((ref) {
   final dio = ref.read(dioProvider);
