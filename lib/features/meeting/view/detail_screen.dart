@@ -173,13 +173,9 @@ class _AgendaCard extends StatelessWidget {
               icon: Icons.check_circle_outline,
               iconColor: const Color(0xFF0F6E56),
             ),
-          // 할 일 (체크박스)
-          if (item.actionItems.isNotEmpty)
-            _ListSection(
-              label: '할 일',
-              items: item.actionItems,
-              icon: Icons.check_box_outline_blank,
-            ),
+          // 할 일 (체크 가능)
+          if (item.actionItems.isNotEmpty && item.itemId != null)
+            _ActionChecklist(item: item),
         ],
       ),
     );
@@ -285,6 +281,111 @@ class _ListSection extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+// 할 일 체크리스트 (체크 시 서버에 저장, 낙관적 갱신)
+class _ActionChecklist extends ConsumerStatefulWidget {
+  final AgendaItem item;
+  const _ActionChecklist({required this.item});
+
+  @override
+  ConsumerState<_ActionChecklist> createState() => _ActionChecklistState();
+}
+
+class _ActionChecklistState extends ConsumerState<_ActionChecklist> {
+  late List<bool> _checked;
+  int? _saving;
+
+  @override
+  void initState() {
+    super.initState();
+    final n = widget.item.actionItems.length;
+    _checked = List.generate(n, (i) => widget.item.isActionChecked(i));
+  }
+
+  Future<void> _toggle(int index, bool next) async {
+    final itemId = widget.item.itemId;
+    if (itemId == null) return;
+    final prev = _checked[index];
+    setState(() {
+      _checked[index] = next;
+      _saving = index;
+    });
+    try {
+      await ref.read(toggleActionCheckProvider)(itemId, index, next);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _checked[index] = prev);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('저장 실패: ${friendlyError(e)}')));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = null);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final actions = widget.item.actionItems;
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '할 일',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+              color: Colors.grey[500],
+            ),
+          ),
+          const SizedBox(height: 4),
+          ...List.generate(actions.length, (i) {
+            final checked = i < _checked.length && _checked[i];
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Checkbox(
+                      value: checked,
+                      onChanged: _saving == i
+                          ? null
+                          : (v) => _toggle(i, v ?? false),
+                      activeColor: const Color(0xFF0F6E56),
+                      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      visualDensity: VisualDensity.compact,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.only(top: 3),
+                      child: Text(
+                        actions[i],
+                        style: TextStyle(
+                          fontSize: 14,
+                          height: 1.4,
+                          color: checked ? Colors.grey[500] : Colors.black87,
+                          decoration:
+                              checked ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
         ],
       ),
     );

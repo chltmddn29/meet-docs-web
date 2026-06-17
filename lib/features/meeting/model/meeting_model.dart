@@ -53,6 +53,7 @@ class AgendaItem {
   final String? decision;
   final List<String> completedItems;
   final List<String> actionItems;
+  final List<bool> actionChecked;
 
   AgendaItem({
     this.itemId,
@@ -64,10 +65,14 @@ class AgendaItem {
     this.decision,
     this.completedItems = const [],
     this.actionItems = const [],
+    this.actionChecked = const [],
   });
 
   static List<String> _strList(dynamic v) =>
       v is List ? v.map((e) => e.toString()).toList() : <String>[];
+
+  static List<bool> _boolList(dynamic v) =>
+      v is List ? v.map((e) => e == true).toList() : <bool>[];
 
   factory AgendaItem.fromJson(Map<String, dynamic> json) {
     return AgendaItem(
@@ -80,8 +85,13 @@ class AgendaItem {
       decision: json['decision'],
       completedItems: _strList(json['completed_items']),
       actionItems: _strList(json['action_items']),
+      actionChecked: _boolList(json['action_checked']),
     );
   }
+
+  // index 위치의 할 일이 체크됐는지 (배열이 짧으면 false)
+  bool isActionChecked(int index) =>
+      index < actionChecked.length && actionChecked[index];
 }
 
 class AudioFile {

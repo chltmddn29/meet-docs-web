@@ -38,6 +38,9 @@ class ApiConstants {
 
   // 할 일 모아보기
   static const String todos = '/api/todos';
+  // 할 일 체크 토글
+  static String toggleActionCheck(int itemId) =>
+      '/api/agenda-items/$itemId/action-check';
 
   // format templates (서식 — 파일 업로드 기반)
   static const String formatTemplates = '/api/format-templates';

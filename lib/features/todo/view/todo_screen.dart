@@ -196,7 +196,7 @@ class _MeetingTodoCard extends StatelessWidget {
           ),
           if (pending.isNotEmpty) ...[
             const SizedBox(height: 16),
-            ...pending.map((p) => _TodoRow(item: p, done: false)),
+            ...pending.map((p) => _ActionCheckRow(item: p)),
           ],
           if (done.isNotEmpty) ...[
             const SizedBox(height: 12),
@@ -246,6 +246,99 @@ class _TodoRow extends StatelessWidget {
                     height: 1.4,
                     color: done ? Colors.grey[500] : Colors.black87,
                     decoration: done ? TextDecoration.lineThrough : null,
+                  ),
+                ),
+                if (agenda.toString().isNotEmpty)
+                  Text(
+                    agenda,
+                    style: TextStyle(fontSize: 11, color: Colors.grey[400]),
+                  ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// 체크 가능한 할 일 행 (낙관적 토글 + 서버 저장)
+class _ActionCheckRow extends ConsumerStatefulWidget {
+  final Map<String, dynamic> item;
+  const _ActionCheckRow({required this.item});
+
+  @override
+  ConsumerState<_ActionCheckRow> createState() => _ActionCheckRowState();
+}
+
+class _ActionCheckRowState extends ConsumerState<_ActionCheckRow> {
+  late bool _checked;
+  bool _saving = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checked = widget.item['checked'] == true;
+  }
+
+  Future<void> _toggle(bool? v) async {
+    final next = v ?? false;
+    final itemId = widget.item['item_id'];
+    final index = widget.item['index'];
+    if (itemId == null || index == null || _saving) return;
+
+    final prev = _checked;
+    setState(() {
+      _checked = next; // 낙관적 갱신
+      _saving = true;
+    });
+    try {
+      await ref.read(toggleActionCheckProvider)(itemId, index, next);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _checked = prev); // 실패 시 롤백
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('저장 실패: ${friendlyError(e)}')));
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final text = widget.item['text'] ?? '';
+    final agenda = widget.item['agenda'] ?? '';
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 24,
+            height: 24,
+            child: Checkbox(
+              value: _checked,
+              onChanged: _saving ? null : _toggle,
+              activeColor: const Color(0xFF0F6E56),
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  text,
+                  style: TextStyle(
+                    fontSize: 14,
+                    height: 1.4,
+                    color: _checked ? Colors.grey[500] : Colors.black87,
+                    decoration:
+                        _checked ? TextDecoration.lineThrough : null,
                   ),
                 ),
                 if (agenda.toString().isNotEmpty)

@@ -81,3 +81,14 @@ final deleteMeetingProvider = Provider((ref) {
     await dio.delete(ApiConstants.deleteMeeting(meetingId));
   };
 });
+
+// 할 일 체크 토글
+final toggleActionCheckProvider = Provider((ref) {
+  final dio = ref.read(dioProvider);
+  return (int itemId, int index, bool checked) async {
+    await dio.put(
+      ApiConstants.toggleActionCheck(itemId),
+      data: {'index': index, 'checked': checked},
+    );
+  };
+});
