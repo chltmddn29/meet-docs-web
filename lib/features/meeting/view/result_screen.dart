@@ -307,6 +307,8 @@ class _AgendaCard extends StatelessWidget {
             _section('내용', text: item.content),
           if (item.discussions.isNotEmpty)
             _section('주요 의견', list: item.discussions),
+          if (item.speakerPoints.isNotEmpty)
+            _section('발언자별 정리', list: item.speakerPoints),
           if (item.decision != null && item.decision!.isNotEmpty)
             _section('결정', text: item.decision),
           if (item.completedItems.isNotEmpty)

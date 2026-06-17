@@ -49,6 +49,7 @@ class AgendaItem {
   final int order;
   final String? content;
   final List<String> discussions;
+  final List<String> speakerPoints;
   final String? decision;
   final List<String> completedItems;
   final List<String> actionItems;
@@ -59,6 +60,7 @@ class AgendaItem {
     required this.order,
     this.content,
     this.discussions = const [],
+    this.speakerPoints = const [],
     this.decision,
     this.completedItems = const [],
     this.actionItems = const [],
@@ -74,6 +76,7 @@ class AgendaItem {
       order: json['order'] ?? 0,
       content: json['content'],
       discussions: _strList(json['discussions']),
+      speakerPoints: _strList(json['speaker_points']),
       decision: json['decision'],
       completedItems: _strList(json['completed_items']),
       actionItems: _strList(json['action_items']),

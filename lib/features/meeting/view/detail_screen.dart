@@ -145,6 +145,14 @@ class _AgendaCard extends StatelessWidget {
               items: item.discussions,
               bullet: '•',
             ),
+          // 발언자별 정리 (참석자 이름 기반 추정)
+          if (item.speakerPoints.isNotEmpty)
+            _ListSection(
+              label: '발언자별 정리',
+              items: item.speakerPoints,
+              icon: Icons.person_outline,
+              iconColor: const Color(0xFF7A5AF8),
+            ),
           // 결정사항 (강조)
           if (item.decision != null && item.decision!.isNotEmpty)
             _TextSection(
