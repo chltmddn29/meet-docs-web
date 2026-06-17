@@ -37,7 +37,10 @@ class TodoScreen extends ConsumerWidget {
   ) {
     final totalPending = data['total_pending'] ?? 0;
     final totalDone = data['total_done'] ?? 0;
-    final meetings = (data['meetings'] as List?) ?? [];
+    final meetings = (data['meetings'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        [];
 
     return RefreshIndicator(
       onRefresh: () async => ref.invalidate(todosProvider),
@@ -145,8 +148,14 @@ class _MeetingTodoCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final title = meeting['meeting_title'] ?? '제목 없음';
     final meetingId = meeting['meeting_id'];
-    final pending = (meeting['pending'] as List?) ?? [];
-    final done = (meeting['done'] as List?) ?? [];
+    final pending = (meeting['pending'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        [];
+    final done = (meeting['done'] as List?)
+            ?.whereType<Map<String, dynamic>>()
+            .toList() ??
+        [];
     final dateStr = _formatDate(meeting['created_at']);
 
     return Container(
