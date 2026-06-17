@@ -637,6 +637,21 @@ class _FormatEmptyState extends StatelessWidget {
           Text(
             'docx · hwp · hwpx · md · txt 회의록 예시를 올리면 AI가 그 형식대로 만들어줍니다',
             style: TextStyle(fontSize: 12, color: Colors.grey[400]),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0F6FF),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              '💡 양식에 {{제목}} {{날짜}} {{참석자}} {{안건}} {{결정}} {{할일}} {{한일}} 같은 '
+              '칸을 넣으면, 그 자리에 회의 값이 정확히 채워집니다.',
+              style: TextStyle(fontSize: 11, color: Colors.grey[600], height: 1.5),
+              textAlign: TextAlign.center,
+            ),
           ),
           const SizedBox(height: 18),
           OutlinedButton.icon(
