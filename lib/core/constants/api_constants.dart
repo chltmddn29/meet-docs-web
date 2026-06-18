@@ -1,5 +1,5 @@
 class ApiConstants {
-  static const String baseUrl = 'https://meet-docs-service-server.onrender.com';
+  static const String baseUrl = 'https://choiseungwoo-meet-docs.hf.space';
 
   // meetings
   static const String meetings = '/api/meetings';
