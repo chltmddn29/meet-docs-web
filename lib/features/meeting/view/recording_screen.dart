@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:http_parser/http_parser.dart';
 import 'dart:async';
 import '../../../core/constants/api_constants.dart';
+import '../../../core/utils/web_download.dart';
 import '../../../shared/widgets/sidebar.dart';
 import '../provider/meeting_provider.dart';
 
@@ -30,6 +31,8 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
   // 업로드 실패 시 녹음 바이트를 보관 → 네트워크 복구 후 재업로드 가능
   List<int>? _pendingBytes;
   bool _uploadFailed = false;
+  // 업로드 실패 시 자동 로컬 저장을 1회만 수행하기 위한 플래그
+  bool _savedLocally = false;
 
   // 네트워크 상태 — 녹음 중 서버 연결이 끊기면 즉시 배너로 알림
   Timer? _netTimer;
@@ -251,19 +254,45 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
   // 업로드 실패 처리 → 재시도 가능 상태로 전환(녹음 바이트는 보관됨)
   void _onUploadError(Object e) {
     if (!mounted) return;
+    // 업로드가 처음 실패하는 순간, 녹음 원본을 즉시 PC에 저장한다.
+    // 새로고침·탭 종료로 메모리가 날아가도 파일은 손에 남는다(데이터 유실 방지).
+    _saveRecordingLocally(auto: true);
     setState(() {
       _isUploading = false;
       _uploadFailed = true;
       _statusText = _isOnline
-          ? '업로드 실패 — "다시 업로드"를 눌러 재시도하세요'
-          : '서버 연결이 끊겼어요 — 복구되면 다시 업로드할 수 있어요';
+          ? '업로드 실패 — 녹음은 PC에 저장됐어요. "다시 업로드"로 재시도하세요'
+          : '서버 연결이 끊겼어요 — 녹음은 PC에 저장됐어요. 복구되면 다시 업로드할 수 있어요';
     });
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('업로드 실패: $e (녹음은 보관됨)'),
-        duration: const Duration(seconds: 6),
+        content: Text('업로드 실패: $e\n녹음 파일을 PC에 저장했어요 (다시 업로드도 가능).'),
+        duration: const Duration(seconds: 8),
       ),
     );
+  }
+
+  // 보관된 녹음 바이트를 사용자 PC로 내려받는다.
+  // auto=true: 업로드 실패 시 자동 호출(1회만). auto=false: 사용자가 버튼으로 직접 저장.
+  void _saveRecordingLocally({bool auto = false}) {
+    final bytes = _pendingBytes;
+    if (bytes == null || bytes.isEmpty) return;
+    if (auto && _savedLocally) return; // 자동 저장은 중복 방지
+    _savedLocally = true;
+    final ts = DateTime.now();
+    final stamp =
+        '${ts.year}${ts.month.toString().padLeft(2, '0')}${ts.day.toString().padLeft(2, '0')}'
+        '_${ts.hour.toString().padLeft(2, '0')}${ts.minute.toString().padLeft(2, '0')}';
+    downloadBytes(
+      bytes,
+      'meeting_${widget.meetingId}_$stamp.webm',
+      mimeType: 'audio/webm',
+    );
+    if (!auto && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('녹음 파일을 PC에 저장했어요')),
+      );
+    }
   }
 
   // 재업로드: 네트워크 복구 후 보관된 녹음을 다시 올림
@@ -476,6 +505,18 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
                         ),
                       ),
                     ),
+                    // 업로드 실패 시: 녹음 원본을 언제든 PC에 다시 저장할 수 있는 버튼
+                    if (_uploadFailed && _pendingBytes != null) ...[
+                      const SizedBox(height: 12),
+                      TextButton.icon(
+                        onPressed: () => _saveRecordingLocally(),
+                        icon: const Icon(Icons.download, size: 18),
+                        label: const Text('녹음 파일 내 PC에 저장'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: const Color(0xFF378ADD),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                       loading: () => const CircularProgressIndicator(),
