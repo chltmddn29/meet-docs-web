@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -29,9 +31,11 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
   Future<void> _startProcessing() async {
     final dio = ref.read(dioProvider);
     try {
-      // 1. STT 처리
+      // 1. STT 처리 — 백그라운드 변환을 시작시키고, 완료될 때까지 상태를 폴링.
+      //    긴 회의는 변환이 수 분 걸리므로 한 번에 기다리지 않고 주기적으로 확인한다.
       setState(() => _step = 1);
       await dio.post(ApiConstants.processAudio(widget.meetingId));
+      await _waitForTranscription(dio);
 
       // 2. AI 분석
       setState(() => _step = 2);
@@ -50,6 +54,36 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
         _errorMessage = friendlyError(e);
       });
     }
+  }
+
+  // 백그라운드 변환이 끝날 때까지 상태를 주기적으로 확인(폴링).
+  // completed면 정상 반환, failed면 에러 throw, 그 외엔 계속 대기.
+  Future<void> _waitForTranscription(Dio dio) async {
+    const pollInterval = Duration(seconds: 3);
+    final deadline = DateTime.now().add(const Duration(minutes: 30));
+
+    while (DateTime.now().isBefore(deadline)) {
+      await Future.delayed(pollInterval);
+      Response res;
+      try {
+        res = await dio.get(
+          ApiConstants.processStatus(widget.meetingId),
+          options: Options(validateStatus: (s) => s != null && s < 500),
+        );
+      } catch (_) {
+        // 일시적 네트워크 오류는 무시하고 다음 폴링에서 재시도
+        continue;
+      }
+      final data = res.data;
+      final status = (data is Map) ? data['status'] as String? : null;
+      if (status == 'completed') return;
+      if (status == 'failed') {
+        final err = (data is Map ? data['error'] : null) ?? '변환에 실패했습니다';
+        throw Exception(err);
+      }
+      // 'processing'/'idle' → 계속 폴링
+    }
+    throw Exception('변환이 시간 내에 끝나지 않았습니다. 잠시 후 다시 시도해주세요.');
   }
 
   @override

@@ -7,6 +7,8 @@ class ApiConstants {
   static String deleteMeeting(int id) => '/api/meetings/$id';
   static String uploadAudio(int id) => '/api/meetings/$id/upload-audio';
   static String processAudio(int id) => '/api/meetings/$id/process';
+  // 변환 진행 상태 폴링 (긴 회의는 백그라운드 변환 → 완료까지 주기적으로 확인)
+  static String processStatus(int id) => '/api/meetings/$id/process-status';
   static String analyzeMeeting(int id) => '/api/meetings/$id/analyze';
   static String saveMarkdown(int id) => '/api/meetings/$id/save-markdown';
   static String savePlatform(int id, String platform) =>
