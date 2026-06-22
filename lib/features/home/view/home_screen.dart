@@ -337,7 +337,7 @@ class _MeetingItem extends StatelessWidget {
         border: Border.all(color: Colors.grey[200]!),
       ),
       child: InkWell(
-        onTap: () => context.go('/detail/${meeting.meetingId}'),
+        onTap: () => context.push('/detail/${meeting.meetingId}'),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [

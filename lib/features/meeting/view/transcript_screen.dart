@@ -29,7 +29,9 @@ class TranscriptScreen extends ConsumerWidget {
                     Row(
                       children: [
                         IconButton(
-                          onPressed: () => context.pop(),
+                          onPressed: () => context.canPop()
+                              ? context.pop()
+                              : context.go('/detail/$meetingId'),
                           icon: const Icon(Icons.arrow_back),
                         ),
                         const SizedBox(width: 8),

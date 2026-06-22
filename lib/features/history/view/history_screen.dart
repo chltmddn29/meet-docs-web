@@ -141,7 +141,7 @@ class HistoryScreen extends ConsumerWidget {
                                 ...meetings.map(
                                   (m) => InkWell(
                                     onTap: () =>
-                                        context.go('/detail/${m.meetingId}'),
+                                        context.push('/detail/${m.meetingId}'),
                                     child: Container(
                                       padding: const EdgeInsets.all(16),
                                       decoration: BoxDecoration(

@@ -172,7 +172,7 @@ class _MeetingTodoCard extends StatelessWidget {
         children: [
           // 회의 제목 (클릭 시 상세)
           InkWell(
-            onTap: () => context.go('/detail/$meetingId'),
+            onTap: () => context.push('/detail/$meetingId'),
             child: Row(
               children: [
                 Expanded(

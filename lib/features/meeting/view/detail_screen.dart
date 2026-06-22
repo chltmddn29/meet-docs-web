@@ -37,7 +37,9 @@ class DetailScreen extends ConsumerWidget {
                     Row(
                       children: [
                         IconButton(
-                          onPressed: () => context.go('/'),
+                          // 이전 화면이 있으면 그곳으로, 없으면(직접 진입) 홈으로
+                          onPressed: () =>
+                              context.canPop() ? context.pop() : context.go('/'),
                           icon: const Icon(Icons.arrow_back),
                         ),
                         const SizedBox(width: 8),
