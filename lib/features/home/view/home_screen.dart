@@ -1,6 +1,10 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:http_parser/http_parser.dart';
+import '../../../core/constants/api_constants.dart';
+import '../../../core/utils/web_file_picker.dart';
 import '../../../shared/widgets/sidebar.dart';
 import '../../meeting/provider/meeting_provider.dart';
 import '../../meeting/model/meeting_model.dart';
@@ -52,6 +56,11 @@ class HomeScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
+
+                  const SizedBox(height: 32),
+
+                  // 음성 파일 업로드 (기존 녹음 파일을 직접 올려 변환)
+                  const _AudioUploadCard(),
 
                   const SizedBox(height: 32),
 
@@ -112,6 +121,151 @@ class HomeScreen extends ConsumerWidget {
                     ],
                   ),
                 ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// 기존 음성 파일을 골라 업로드 → 회의 생성 → 변환 화면으로 이동.
+// 녹음이 어려운 경우나, 업로드 실패 시 PC에 자동 저장된 녹음을 다시 올릴 때 사용.
+class _AudioUploadCard extends ConsumerStatefulWidget {
+  const _AudioUploadCard();
+
+  @override
+  ConsumerState<_AudioUploadCard> createState() => _AudioUploadCardState();
+}
+
+class _AudioUploadCardState extends ConsumerState<_AudioUploadCard> {
+  bool _busy = false;
+  String _status = '';
+
+  Future<void> _pickAndUpload() async {
+    if (_busy) return;
+    final picked = await pickFile(
+      ['webm', 'm4a', 'mp3', 'wav', 'ogg', 'opus', 'aac', 'mp4'],
+    );
+    if (picked == null || picked.bytes.isEmpty) return; // 취소/빈 파일
+    setState(() {
+      _busy = true;
+      _status = '회의 생성 중...';
+    });
+    try {
+      final dio = ref.read(dioProvider);
+      // 1) 회의 생성 (제목 = 파일명에서 확장자 제거)
+      final create = ref.read(createMeetingProvider);
+      final base = picked.name.replaceAll(RegExp(r'\.[^.]+$'), '').trim();
+      final meeting = await create(
+        base.isEmpty ? '업로드된 음성' : base,
+        <String>[],
+        <String>[],
+      );
+
+      // 2) 업로드
+      final mb = (picked.bytes.length / 1024 / 1024).toStringAsFixed(1);
+      setState(() => _status = '업로드 중... (${mb}MB)');
+      final ext = picked.name.contains('.')
+          ? picked.name.split('.').last.toLowerCase()
+          : 'webm';
+      final formData = FormData.fromMap({
+        'file': MultipartFile.fromBytes(
+          picked.bytes,
+          filename: picked.name,
+          contentType: MediaType('audio', ext),
+        ),
+      });
+      await dio.post(
+        ApiConstants.uploadAudio(meeting.meetingId),
+        data: formData,
+        options: Options(
+          sendTimeout: const Duration(minutes: 10),
+          receiveTimeout: const Duration(minutes: 10),
+        ),
+      );
+
+      // 3) 목록 갱신 + 변환 화면으로 이동 (STT→분석→저장 자동 진행)
+      ref.invalidate(audioFilesProvider);
+      ref.invalidate(meetingsProvider);
+      if (mounted) context.go('/result/${meeting.meetingId}');
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _busy = false;
+          _status = '';
+        });
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('업로드 실패: $e')));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: const BoxDecoration(
+              color: Color(0xFFE6F1FB),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.upload_file_outlined,
+              color: Color(0xFF378ADD),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  '음성 파일 업로드',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  _busy
+                      ? _status
+                      : '녹음 파일(webm·m4a·mp3·wav 등)을 올려 회의록으로 변환합니다',
+                  style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton.icon(
+            onPressed: _busy ? null : _pickAndUpload,
+            icon: _busy
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 2,
+                    ),
+                  )
+                : const Icon(Icons.folder_open, size: 18),
+            label: Text(_busy ? '처리 중' : '파일 선택'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF378ADD),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
               ),
             ),
           ),
