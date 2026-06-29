@@ -1,12 +1,9 @@
-import 'dart:async';
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/api_constants.dart';
-import '../../../core/network/error_message.dart';
 import '../../../shared/widgets/sidebar.dart';
 import '../provider/meeting_provider.dart';
+import '../provider/processing_provider.dart';
 import '../model/meeting_model.dart';
 
 class ResultScreen extends ConsumerStatefulWidget {
@@ -18,76 +15,21 @@ class ResultScreen extends ConsumerStatefulWidget {
 }
 
 class _ResultScreenState extends ConsumerState<ResultScreen> {
-  // 0=대기, 1=STT, 2=AI분석, 3=마크다운저장, 4=완료, -1=에러
-  int _step = 0;
-  String _errorMessage = '';
-
   @override
   void initState() {
     super.initState();
-    _startProcessing();
-  }
-
-  Future<void> _startProcessing() async {
-    final dio = ref.read(dioProvider);
-    try {
-      // 1. STT 처리 — 백그라운드 변환을 시작시키고, 완료될 때까지 상태를 폴링.
-      //    긴 회의는 변환이 수 분 걸리므로 한 번에 기다리지 않고 주기적으로 확인한다.
-      setState(() => _step = 1);
-      await dio.post(ApiConstants.processAudio(widget.meetingId));
-      await _waitForTranscription(dio);
-
-      // 2. AI 분석
-      setState(() => _step = 2);
-      await dio.post(ApiConstants.analyzeMeeting(widget.meetingId));
-
-      // 3. 마크다운 저장
-      setState(() => _step = 3);
-      await dio.post(ApiConstants.saveMarkdown(widget.meetingId));
-
-      // 4. 완료
-      setState(() => _step = 4);
-      ref.invalidate(meetingDetailProvider(widget.meetingId));
-    } catch (e) {
-      setState(() {
-        _step = -1;
-        _errorMessage = friendlyError(e);
-      });
-    }
-  }
-
-  // 백그라운드 변환이 끝날 때까지 상태를 주기적으로 확인(폴링).
-  // completed면 정상 반환, failed면 에러 throw, 그 외엔 계속 대기.
-  Future<void> _waitForTranscription(Dio dio) async {
-    const pollInterval = Duration(seconds: 3);
-    final deadline = DateTime.now().add(const Duration(minutes: 30));
-
-    while (DateTime.now().isBefore(deadline)) {
-      await Future.delayed(pollInterval);
-      Response res;
-      try {
-        res = await dio.get(
-          ApiConstants.processStatus(widget.meetingId),
-          options: Options(validateStatus: (s) => s != null && s < 500),
-        );
-      } catch (_) {
-        // 일시적 네트워크 오류는 무시하고 다음 폴링에서 재시도
-        continue;
-      }
-      final data = res.data;
-      final status = (data is Map) ? data['status'] as String? : null;
-      if (status == 'completed') return;
-      if (status == 'failed') {
-        final err = (data is Map ? data['error'] : null) ?? '변환에 실패했습니다';
-        throw Exception(err);
-      }
-      // 'processing'/'idle' → 계속 폴링
-    }
-    throw Exception('변환이 시간 내에 끝나지 않았습니다. 잠시 후 다시 시도해주세요.');
+    // 파이프라인은 화면 밖 provider에서 실행되므로, 다른 페이지로 이동해도
+    // STT→AI정리→저장까지 끝까지 진행된다. 중복 호출은 provider가 방어한다.
+    Future.microtask(
+      () => ref.read(meetingProcessProvider(widget.meetingId).notifier).start(),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
+    final process = ref.watch(meetingProcessProvider(widget.meetingId));
+    final step = process.step;
+
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       body: Row(
@@ -95,11 +37,11 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
           const Sidebar(),
           const VerticalDivider(width: 1),
           Expanded(
-            child: _step == 4
+            child: step == 4
                 ? _buildResult()
-                : _step == -1
-                ? _buildError()
-                : _buildProcessing(),
+                : step == -1
+                ? _buildError(process.error ?? '')
+                : _buildProcessing(step),
           ),
         ],
       ),
@@ -107,7 +49,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
   }
 
   // 처리 중 화면
-  Widget _buildProcessing() {
+  Widget _buildProcessing(int step) {
     final steps = [
       ('음성 파일 업로드', 0),
       ('음성 텍스트 변환', 1),
@@ -143,9 +85,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
               children: steps.map((s) {
                 final label = s.$1;
                 final stepNum = s.$2;
-                final isDone = _step > stepNum;
+                final isDone = step > stepNum;
                 final isCurrent =
-                    _step == stepNum + 1 || (_step == 1 && stepNum == 0);
+                    step == stepNum + 1 || (step == 1 && stepNum == 0);
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Row(
@@ -189,9 +131,9 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
   }
 
   // 에러 화면
-  Widget _buildError() {
+  Widget _buildError(String errorMessage) {
     final isShortRecording =
-        _errorMessage.contains('400') || _errorMessage.contains('부족');
+        errorMessage.contains('400') || errorMessage.contains('부족');
 
     return Center(
       child: Column(
@@ -213,7 +155,7 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
             child: Text(
               isShortRecording
                   ? '녹음이 너무 짧거나 음성이 충분하지 않았어요.\n조금 더 길게 녹음하면 자동으로 정리해드릴게요.'
-                  : _errorMessage,
+                  : errorMessage,
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: Colors.grey[500]),
             ),
@@ -227,6 +169,15 @@ class _ResultScreenState extends ConsumerState<ResultScreen> {
                 child: const Text('홈으로'),
               ),
               const SizedBox(width: 12),
+              if (!isShortRecording) ...[
+                OutlinedButton(
+                  onPressed: () => ref
+                      .read(meetingProcessProvider(widget.meetingId).notifier)
+                      .start(),
+                  child: const Text('다시 시도'),
+                ),
+                const SizedBox(width: 12),
+              ],
               ElevatedButton(
                 onPressed: () => context.go('/agenda'),
                 style: ElevatedButton.styleFrom(
