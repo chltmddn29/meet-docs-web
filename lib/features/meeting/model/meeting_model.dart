@@ -96,7 +96,8 @@ class AgendaItem {
 
 class AudioFile {
   final int transcriptId;
-  final int meetingId;
+  // 회의가 삭제되면 음성은 보존되지만 연결이 끊겨 null이 된다(고아 음성).
+  final int? meetingId;
   final String audioFilePath;
 
   AudioFile({

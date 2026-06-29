@@ -24,6 +24,9 @@ class ApiConstants {
   // audio
   static const String audioFiles = '/api/audio-files';
   static String deleteAudio(int id) => '/api/audio-files/$id';
+  // 고아 음성(회의 삭제됨)을 새 회의로 다시 생성할 때: 새 회의 생성+연결
+  static String newMeetingFromAudio(int transcriptId) =>
+      '/api/audio-files/$transcriptId/new-meeting';
   // 재생: 브라우저에서 직접 열어 재생(inline)
   static String downloadAudioFile(int id) =>
       '$baseUrl/api/audio-files/$id/download';

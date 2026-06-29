@@ -435,7 +435,7 @@ class _AudioItem extends ConsumerWidget {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () => regenerateMinutes(context, audio.meetingId),
+                  onPressed: () => regenerateMinutes(context, ref, audio),
                   icon: const Icon(Icons.refresh, size: 16),
                   label: const Text('회의록 다시 생성'),
                   style: OutlinedButton.styleFrom(

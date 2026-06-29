@@ -79,7 +79,9 @@ class AudioScreen extends ConsumerWidget {
                                               ),
                                               const SizedBox(height: 4),
                                               Text(
-                                                '회의 ID: ${f.meetingId}',
+                                                f.meetingId == null
+                                                    ? '회의 삭제됨 · 다시 생성 가능'
+                                                    : '회의 ID: ${f.meetingId}',
                                                 style: TextStyle(
                                                   fontSize: 12,
                                                   color: Colors.grey[500],
@@ -109,7 +111,8 @@ class AudioScreen extends ConsumerWidget {
                                         IconButton(
                                           onPressed: () => regenerateMinutes(
                                             context,
-                                            f.meetingId,
+                                            ref,
+                                            f,
                                           ),
                                           icon: const Icon(Icons.refresh),
                                           color: const Color(0xFF0F6E56),
