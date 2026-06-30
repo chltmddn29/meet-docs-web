@@ -164,9 +164,9 @@ class _AudioUploadCardState extends ConsumerState<_AudioUploadCard> {
         <String>[],
       );
 
-      // 2) 업로드
+      // 2) 업로드 (진행률 표시 — 0%에서 멈추면 연결/콜드스타트, 천천히 오르면 회선/크기 문제)
       final mb = (picked.bytes.length / 1024 / 1024).toStringAsFixed(1);
-      setState(() => _status = '업로드 중... (${mb}MB)');
+      setState(() => _status = '업로드 준비 중... (${mb}MB)');
       final ext = picked.name.contains('.')
           ? picked.name.split('.').last.toLowerCase()
           : 'webm';
@@ -184,6 +184,11 @@ class _AudioUploadCardState extends ConsumerState<_AudioUploadCard> {
           sendTimeout: const Duration(minutes: 10),
           receiveTimeout: const Duration(minutes: 10),
         ),
+        onSendProgress: (sent, total) {
+          if (!mounted || total <= 0) return;
+          final pct = (sent / total * 100).clamp(0, 100).toStringAsFixed(0);
+          setState(() => _status = '업로드 중... $pct% (${mb}MB)');
+        },
       );
 
       // 3) 목록 갱신 + 변환 화면으로 이동 (STT→분석→저장 자동 진행)

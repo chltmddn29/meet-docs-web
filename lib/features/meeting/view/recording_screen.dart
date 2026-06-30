@@ -244,6 +244,11 @@ class _RecordingScreenState extends ConsumerState<RecordingScreen>
         sendTimeout: const Duration(seconds: 60),
         receiveTimeout: const Duration(seconds: 60),
       ),
+      onSendProgress: (sent, total) {
+        if (!mounted || total <= 0) return;
+        final pct = (sent / total * 100).clamp(0, 100).toStringAsFixed(0);
+        setState(() => _statusText = '업로드 중... $pct%');
+      },
     );
 
     // 성공 → 보관본 비우고 result로 이동
